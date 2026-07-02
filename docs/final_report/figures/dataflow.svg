@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1560" font-family="Helvetica,Arial,sans-serif">
+<rect x="0" y="0" width="900" height="1560" fill="#FFFFFF"/>
+<defs><marker id="a_black" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1B2631"/></marker><marker id="o_black" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#1B2631" stroke-width="1.6"/></marker><marker id="a_red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#C0392B"/></marker><marker id="o_red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#C0392B" stroke-width="1.6"/></marker><marker id="a_green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1E8449"/></marker><marker id="o_green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#1E8449" stroke-width="1.6"/></marker><marker id="a_grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5D6D7E"/></marker><marker id="o_grey" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#5D6D7E" stroke-width="1.6"/></marker><marker id="a_purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7D3C98"/></marker><marker id="o_purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#7D3C98" stroke-width="1.6"/></marker></defs>
+<polygon points="162,40 460,40 438,120 140,120" fill="#FDEBD0" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="72.0">Raw photo (JPEG)</tspan><tspan x="290" y="88.0">+ optional barcode crop</tspan></text>
+<rect x="140" y="160" width="320" height="66" rx="6" fill="#D6EAF8" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="193.0">Capture &amp; Pre-process</tspan></text>
+<polygon points="162,268 460,268 438,338 140,338" fill="#FDEBD0" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="303.0">Normalised image</tspan></text>
+<rect x="140" y="380" width="320" height="66" rx="6" fill="#D6EAF8" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="413.0">Recognise (VLM + OCR)</tspan></text>
+<polygon points="162,488 460,488 438,576 140,576" fill="#FDEBD0" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="516.0">Product identity {brand,</tspan><tspan x="290" y="532.0">variant, size, category,</tspan><tspan x="290" y="548.0">OCR text, confidence}</tspan></text>
+<rect x="140" y="618" width="320" height="66" rx="6" fill="#D6EAF8" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="651.0">Retrieve</tspan></text>
+<polygon points="162,726 460,726 438,814 140,814" fill="#FDEBD0" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="754.0">Retrieved bundle {prices[],</tspan><tspan x="290" y="770.0">canonical name,</tspan><tspan x="290" y="786.0">candidate images[] + licences}</tspan></text>
+<rect x="140" y="856" width="320" height="66" rx="6" fill="#D6EAF8" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="889.0">Generate</tspan></text>
+<polygon points="162,964 460,964 438,1052 140,1052" fill="#FDEBD0" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="992.0">Draft listing {title, description,</tspan><tspan x="290" y="1008.0">price + range, selected image,</tspan><tspan x="290" y="1024.0">flags}</tspan></text>
+<rect x="140" y="1094" width="320" height="66" rx="6" fill="#D6EAF8" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="1127.0">Guardrails / Validate</tspan></text>
+<polygon points="162,1202 460,1202 438,1282 140,1282" fill="#FDEBD0" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="1234.0">Validated listing</tspan><tspan x="290" y="1250.0">+ compliance status</tspan></text>
+<rect x="140" y="1318" width="320" height="66" rx="6" fill="#D6EAF8" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="1351.0">Human Review</tspan></text>
+<polygon points="162,1426 460,1426 438,1506 140,1506" fill="#D5F5E3" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="290" y="1458.0">Published catalogue entry</tspan><tspan x="290" y="1474.0">(storefront / delivery app)</tspan></text>
+<path d="M 290,120 L 290,160" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,226 L 290,268" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,338 L 290,380" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,446 L 290,488" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,576 L 290,618" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,684 L 290,726" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,814 L 290,856" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,922 L 290,964" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,1052 L 290,1094" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,1160 L 290,1202" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,1282 L 290,1318" fill="none" stroke="#1B2631" stroke-width="2" marker-end="url(#a_black)"/>
+<path d="M 290,1384 L 290,1426" fill="none" stroke="#1E8449" stroke-width="2" marker-end="url(#a_green)"/>
+<path d="M600,604 A130.0,14 0 0 1 860,604 L860,656 A130.0,14 0 0 1 600,656 Z" fill="#EAECEE" stroke="#1B2631" stroke-width="2"/><path d="M600,604 A130.0,14 0 0 0 860,604" fill="none" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="730" y="622.0">Retail Price /</tspan><tspan x="730" y="638.0">Catalogue API (GTIN)</tspan></text>
+<path d="M600,714 A130.0,14 0 0 1 860,714 L860,766 A130.0,14 0 0 1 600,766 Z" fill="#EAECEE" stroke="#1B2631" stroke-width="2"/><path d="M600,714 A130.0,14 0 0 0 860,714" fill="none" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="12" font-weight="normal" fill="#1B2631"><tspan x="730" y="732.0">Licence-aware</tspan><tspan x="730" y="748.0">Image Source</tspan></text>
+<path d="M600,1314 A130.0,14 0 0 1 860,1314 L860,1390 A130.0,14 0 0 1 600,1390 Z" fill="#EAECEE" stroke="#1B2631" stroke-width="2"/><path d="M600,1314 A130.0,14 0 0 0 860,1314" fill="none" stroke="#1B2631" stroke-width="2"/>
+<text text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="11" font-weight="normal" fill="#1B2631"><tspan x="730" y="1337.0">Feedback Store</tspan><tspan x="730" y="1352.0">(corrections +</tspan><tspan x="730" y="1367.0">ground-truth labels)</tspan></text>
+<path d="M 600,624 L 540,624 L 540,645 L 460,645" fill="none" stroke="#7D3C98" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#a_purple)"/>
+<text x="520" y="616" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#7D3C98"><tspan>prices, name</tspan></text>
+<path d="M 600,738 L 520,738 L 520,668 L 460,668" fill="none" stroke="#7D3C98" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#a_purple)"/>
+<text x="548" y="758" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#7D3C98"><tspan>candidate images</tspan></text>
+<path d="M 460,1351 L 600,1351" fill="none" stroke="#5D6D7E" stroke-width="2" marker-end="url(#a_grey)"/>
+<text x="530" y="1343" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#5D6D7E"><tspan>corrections</tspan></text>
+<path d="M 860,1351 L 880,1351 L 880,413 L 460,413" fill="none" stroke="#5D6D7E" stroke-width="2" stroke-dasharray="6,5" marker-end="url(#a_grey)"/>
+<text x="858" y="900" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="11" fill="#5D6D7E"><tspan>labels</tspan></text>
+</svg>
