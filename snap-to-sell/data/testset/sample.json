@@ -1,0 +1,10 @@
+{
+  "brand": "CocoDelight",
+  "product": "Chocolate Bar",
+  "variant": "Milk",
+  "size": "45 g",
+  "category": "confectionery",
+  "ocr_text": "CocoDelight Milk Chocolate 45 g",
+  "barcode": null,
+  "confidence": 0.82
+}

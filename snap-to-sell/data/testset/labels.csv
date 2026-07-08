@@ -1,0 +1,5 @@
+image,brand,product,variant,size,category,gt_price,age_restricted
+sample.jpg,CocoDelight,Chocolate Bar,Milk,45 g,confectionery,2.29,false
+duracell_aa.jpg,Duracell,AA Batteries,Power Boost,24 pack,household,21.99,false
+marlboro.jpg,Marlboro,Cigarettes,Smooth Original Flavor,20 pack,tobacco,13.99,true
+flyinghorse.jpg,Flying Horse,Cigarettes,,20 pack,tobacco,5.00,true

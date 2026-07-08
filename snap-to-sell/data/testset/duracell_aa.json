@@ -1,0 +1,11 @@
+{
+  "brand": "Duracell",
+  "product": "AA Batteries",
+  "variant": "Power Boost",
+  "size": "24 pack",
+  "category": "household",
+  "ocr_text": "DURACELL POWER BOOST AA 24",
+  "barcode": null,
+  "confidence": 0.9,
+  "catalogue_image_url": "data/testset/duracell_catalogue.jpg"
+}
