@@ -1,0 +1,18 @@
+# Core — pipeline runs end-to-end with just these (offline + hosted-API paths).
+requests
+pillow
+opencv-python-headless
+imagehash          # perceptual-hash image match fallback (CPU, no torch)
+pandas             # evaluation harness
+numpy
+
+# Optional
+# scikit-learn     # extra metrics
+# matplotlib       # result figures
+# gradio           # review UI (make ui)
+
+# Optional high-accuracy image match (heavy; CLIP instead of perceptual hash)
+# torch
+# open_clip_torch
+
+# No SDKs needed: Anthropic (Claude), Gemini and OpenAI are all called over plain HTTPS via `requests`.
