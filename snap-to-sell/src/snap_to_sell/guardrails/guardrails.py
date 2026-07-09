@@ -44,9 +44,10 @@ def apply(listing, identity, bundle,
     listing.flags.age_restricted = _is_age_restricted(identity, bundle)
     listing.flags.low_confidence = identity.confidence < confidence_threshold
     listing.flags.unverifiable_claims = _unverifiable_claims(listing, identity, bundle)
+    listing.flags.retrieval_ambiguous = bool(getattr(bundle, "ambiguous", False))
 
     flagged = (listing.flags.age_restricted or listing.flags.low_confidence
-               or bool(listing.flags.unverifiable_claims))
+               or bool(listing.flags.unverifiable_claims) or listing.flags.retrieval_ambiguous)
     return ValidatedListing(
         listing=listing,
         compliance_status="flagged" if flagged else "clear",

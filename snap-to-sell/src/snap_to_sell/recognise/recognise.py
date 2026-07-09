@@ -13,7 +13,7 @@ from ..interfaces import ProductIdentity
 from .. import providers, config
 
 _FIELDS = {"brand", "product", "variant", "size", "category",
-           "ocr_text", "barcode", "confidence", "catalogue_image_url"}
+           "ocr_text", "barcode", "confidence", "search_query", "catalogue_image_url"}
 
 
 def _from_dict(d: dict) -> ProductIdentity:
@@ -22,7 +22,10 @@ def _from_dict(d: dict) -> ProductIdentity:
         clean["confidence"] = float(clean.get("confidence", 0.0))
     except (TypeError, ValueError):
         clean["confidence"] = 0.0
-    return ProductIdentity(**clean)
+    ident = ProductIdentity(**clean)
+    if not ident.search_query:  # fallback short query if the model didn't supply one
+        ident.search_query = " ".join(x for x in [ident.brand, ident.product, ident.size] if x).strip()
+    return ident
 
 
 def _sidecar_path(image_path: str):

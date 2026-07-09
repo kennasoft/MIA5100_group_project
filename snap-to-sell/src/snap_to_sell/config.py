@@ -8,6 +8,15 @@ import os
 # Open Food Facts asks for a descriptive User-Agent (app name + contact). Override with SNAP_USER_AGENT.
 USER_AGENT = os.getenv("SNAP_USER_AGENT", "snap-to-sell/0.1 (MIA5100 project)")
 
+# Shopping-backend retailer preference: reputable retailers get a ranking bonus; resale/marketplace
+# sites (inconsistent listings/images) get a penalty. Override via SNAP_PREFERRED_SOURCES /
+# SNAP_DEMOTED_SOURCES (comma-separated, matched as case-insensitive substrings of the source name).
+_DEFAULT_PREFERRED = ("amazon,walmart,best buy,costco,target,staples,canadian tire,home depot,"
+                      "lowe's,lowes,ikea,newegg,shoppers drug mart,loblaws,real canadian superstore,"
+                      "no frills,metro,sobeys,london drugs,rexall,giant tiger,dollarama,indigo,apple")
+_DEFAULT_DEMOTED = ("ebay,kijiji,poshmark,etsy,aliexpress,wish,mercari,facebook,depop,temu,alibaba,"
+                    "dhgate,vinted,offerup,letgo")
+
 # ---- open data endpoints (free, static) ----
 # Open Food Facts (food) + Open Products Facts (non-food: household, electronics, etc.).
 # NOTE: the legacy cgi/search.pl Perl search is deprecated (HTTP 503); OFF search now uses the
@@ -17,6 +26,8 @@ OFF_PRODUCT_URL = "https://world.openfoodfacts.org/api/v2/product/{code}.json"
 OPF_SEARCH_URL = "https://world.openproductsfacts.org/cgi/search.pl"  # legacy (best-effort)
 OPF_PRODUCT_URL = "https://world.openproductsfacts.org/api/v2/product/{code}.json"
 OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
+SERPER_SHOPPING_URL = "https://google.serper.dev/shopping"  # Serper.dev Google Shopping
+ECOMSOURCE_URL = "https://api.ecomsource.ai/api/v1"  # needs SNAP_ECOMSOURCE_ACCESS_KEY + _SECRET_KEY
 
 
 def _f(name, default):
@@ -32,8 +43,10 @@ def _truthy(name):
 
 def refresh():
     """Re-read all env-derived settings into module globals. Call after editing os.environ."""
-    global CONFIDENCE_THRESHOLD, IMAGE_MATCH_THRESHOLD, STRICT_PROVIDER, ALWAYS_SWAP
-    global CURRENCY, HTTP_TIMEOUT, LLM_PROVIDER
+    global CONFIDENCE_THRESHOLD, IMAGE_MATCH_THRESHOLD, STRICT_PROVIDER, ALWAYS_SWAP, IMAGE_MODE
+    global CURRENCY, HTTP_TIMEOUT, LLM_PROVIDER, RETRIEVE_BACKEND, SERPER_API_KEY, SHOPPING_GL
+    global PREFERRED_SOURCES, DEMOTED_SOURCES, PREFERRED_CURRENCIES
+    global ECOMSOURCE_ACCESS_KEY, ECOMSOURCE_SECRET_KEY
     global ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY
     global ANTHROPIC_MODEL, GEMINI_MODEL, OPENAI_MODEL
 
@@ -44,6 +57,24 @@ def refresh():
     STRICT_PROVIDER = _truthy("SNAP_STRICT_PROVIDER")
     # Demo override: adopt the retrieved catalogue image without requiring the same-SKU match.
     ALWAYS_SWAP = _truthy("SNAP_ALWAYS_SWAP")
+    # Image strategy: "enhance" = clean the user's own photo (background removal) and only adopt an
+    # external image if it's demonstrably better; "swap" = prefer the retrieved catalogue image;
+    # "off" = keep the original photo.
+    IMAGE_MODE = os.getenv("SNAP_IMAGE_MODE", "enhance").strip().lower()
+    # Retrieval backend: "off" = Open Food Facts / Open Products Facts (free, no key);
+    # "shopping" = Serper.dev Google Shopping (real retailer price + clean image; needs SERPER_API_KEY).
+    RETRIEVE_BACKEND = os.getenv("SNAP_RETRIEVE_BACKEND", "off").strip().lower()
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
+    SHOPPING_GL = os.getenv("SNAP_SHOPPING_GL", "ca")  # region for Google Shopping prices
+    PREFERRED_SOURCES = [s.strip().lower() for s in
+                         os.getenv("SNAP_PREFERRED_SOURCES", _DEFAULT_PREFERRED).split(",") if s.strip()]
+    DEMOTED_SOURCES = [s.strip().lower() for s in
+                       os.getenv("SNAP_DEMOTED_SOURCES", _DEFAULT_DEMOTED).split(",") if s.strip()]
+    ECOMSOURCE_ACCESS_KEY = os.getenv("SNAP_ECOMSOURCE_ACCESS_KEY", "")
+    ECOMSOURCE_SECRET_KEY = os.getenv("SNAP_ECOMSOURCE_SECRET_KEY", "")
+    # Local-first: prefer prices already in these currencies; others (EUR/AUD/…) are penalised.
+    PREFERRED_CURRENCIES = [c.strip().upper() for c in
+                            os.getenv("SNAP_PREFERRED_CURRENCIES", "CAD,USD").split(",") if c.strip()]
     CURRENCY = os.getenv("SNAP_CURRENCY", "CAD")
     HTTP_TIMEOUT = _f("SNAP_HTTP_TIMEOUT", "10")
 

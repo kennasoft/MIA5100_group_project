@@ -7822,7 +7822,7 @@ a.anchor-link {
 <!-- End of mermaid configuration --></head>
 <body class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
 <main>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=0734746a">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=2dbeebef">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7834,7 +7834,7 @@ try images and probe catalogue availability.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=bd88e247">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=7c08febe">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7868,7 +7868,7 @@ try images and probe catalogue availability.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ab3a1a87">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=d877119b">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7881,7 +7881,7 @@ output.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=8bca54a2">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=8a56be3a">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7896,6 +7896,8 @@ output.</p>
 <span class="n">SNAP_OPENAI_MODEL</span>    <span class="o">=</span> <span class="s2">"gpt-4o-mini"</span>   <span class="c1"># e.g. "gpt-4o-mini", "gpt-5.4-mini"</span>
 <span class="n">SNAP_STRICT_PROVIDER</span> <span class="o">=</span> <span class="kc">False</span>           <span class="c1"># True = no sidecar fallback (true LLM output only)</span>
 <span class="n">OPENAI_API_KEY</span>       <span class="o">=</span> <span class="s2">""</span>              <span class="c1"># paste, or leave "" to be prompted / stay offline</span>
+<span class="n">SNAP_RETRIEVE_BACKEND</span> <span class="o">=</span> <span class="s2">"off"</span>          <span class="c1"># "off" (Open Food Facts) | "shopping" (Serper Google Shopping)</span>
+<span class="n">SERPER_API_KEY</span>        <span class="o">=</span> <span class="s2">""</span>             <span class="c1"># get a free key at https://serper.dev (for backend="shopping")</span>
 <span class="c1"># =========================================================================</span>
 
 <span class="k">if</span> <span class="n">SNAP_LLM_PROVIDER</span> <span class="o">==</span> <span class="s2">"openai"</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">OPENAI_API_KEY</span><span class="p">:</span>
@@ -7907,11 +7909,17 @@ output.</p>
 <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"SNAP_LLM_PROVIDER"</span><span class="p">]</span> <span class="o">=</span> <span class="n">SNAP_LLM_PROVIDER</span>
 <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"SNAP_OPENAI_MODEL"</span><span class="p">]</span> <span class="o">=</span> <span class="n">SNAP_OPENAI_MODEL</span>
 <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"SNAP_STRICT_PROVIDER"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"1"</span> <span class="k">if</span> <span class="n">SNAP_STRICT_PROVIDER</span> <span class="k">else</span> <span class="s2">""</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"SNAP_RETRIEVE_BACKEND"</span><span class="p">]</span> <span class="o">=</span> <span class="n">SNAP_RETRIEVE_BACKEND</span>
+<span class="k">if</span> <span class="n">SERPER_API_KEY</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"SERPER_API_KEY"</span><span class="p">]</span> <span class="o">=</span> <span class="n">SERPER_API_KEY</span>
+<span class="k">if</span> <span class="n">SNAP_RETRIEVE_BACKEND</span> <span class="o">==</span> <span class="s2">"shopping"</span><span class="p">:</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"SNAP_IMAGE_MODE"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"swap"</span>   <span class="c1"># show the clean retailer image</span>
 <span class="k">if</span> <span class="n">OPENAI_API_KEY</span><span class="p">:</span>
     <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"OPENAI_API_KEY"</span><span class="p">]</span> <span class="o">=</span> <span class="n">OPENAI_API_KEY</span>
 
 <span class="kn">from</span> <span class="nn">src.snap_to_sell</span> <span class="kn">import</span> <span class="n">config</span>
 <span class="n">config</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">"retrieval:"</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">RETRIEVE_BACKEND</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"provider :"</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">active_provider</span><span class="p">()</span> <span class="ow">or</span> <span class="s2">"offline (no key)"</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">"model    :"</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">OPENAI_MODEL</span><span class="p">,</span> <span class="s2">"| strict:"</span><span class="p">,</span> <span class="n">config</span><span class="o">.</span><span class="n">STRICT_PROVIDER</span><span class="p">)</span>
 </pre></div>
@@ -7926,7 +7934,8 @@ output.</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
-<pre>provider : offline (no key)
+<pre>retrieval: off
+provider : offline (no key)
 model    : gpt-4o-mini | strict: False
 </pre>
 </div>
@@ -7934,7 +7943,7 @@ model    : gpt-4o-mini | strict: False
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=6df22039">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=b0e52983">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7944,7 +7953,7 @@ model    : gpt-4o-mini | strict: False
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=7284ae41">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=f9c9c855">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -7989,13 +7998,15 @@ model    : gpt-4o-mini | strict: False
 <span class="s2">&lt;/style&gt;"""</span>
 
 <span class="k">def</span> <span class="nf">_src_label</span><span class="p">(</span><span class="n">bundle</span><span class="p">):</span>
-    <span class="k">if</span> <span class="n">bundle</span><span class="o">.</span><span class="n">images</span><span class="p">:</span>
-        <span class="n">s</span> <span class="o">=</span> <span class="n">bundle</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span>
-        <span class="k">if</span> <span class="n">s</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"Open Food Facts"</span><span class="p">,</span> <span class="s2">"Open Products Facts"</span><span class="p">):</span>
-            <span class="k">return</span> <span class="sa">f</span><span class="s1">'&lt;span class="pg-badge pg-hit"&gt;</span><span class="si">{</span><span class="n">s</span><span class="si">}</span><span class="s1"> hit&lt;/span&gt;'</span>
-        <span class="k">if</span> <span class="n">s</span> <span class="o">==</span> <span class="s2">"sidecar"</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s1">'&lt;span class="pg-badge pg-demo"&gt;demo image (sidecar)&lt;/span&gt;'</span>
-    <span class="k">return</span> <span class="s1">'&lt;span class="pg-badge pg-miss"&gt;no catalogue hit&lt;/span&gt;'</span>
+    <span class="k">if</span> <span class="n">bundle</span><span class="o">.</span><span class="n">images</span> <span class="ow">and</span> <span class="n">bundle</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"Open Food Facts"</span><span class="p">,</span> <span class="s2">"Open Products Facts"</span><span class="p">):</span>
+        <span class="n">chip</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">'&lt;span class="pg-badge pg-hit"&gt;</span><span class="si">{</span><span class="n">bundle</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span><span class="si">}</span><span class="s1"> hit&lt;/span&gt;'</span>
+    <span class="k">elif</span> <span class="n">bundle</span><span class="o">.</span><span class="n">images</span> <span class="ow">and</span> <span class="n">bundle</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">source</span> <span class="o">==</span> <span class="s2">"sidecar"</span><span class="p">:</span>
+        <span class="n">chip</span> <span class="o">=</span> <span class="s1">'&lt;span class="pg-badge pg-demo"&gt;demo image (sidecar)&lt;/span&gt;'</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">chip</span> <span class="o">=</span> <span class="s1">'&lt;span class="pg-badge pg-miss"&gt;no catalogue hit&lt;/span&gt;'</span>
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">bundle</span><span class="p">,</span> <span class="s2">"ambiguous"</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="n">chip</span> <span class="o">+=</span> <span class="s1">' &lt;span class="pg-badge pg-miss"&gt;ambiguous match&lt;/span&gt;'</span>
+    <span class="k">return</span> <span class="n">chip</span>
 
 <span class="k">def</span> <span class="nf">_card</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">identity</span><span class="p">,</span> <span class="n">bundle</span><span class="p">):</span>
     <span class="n">i</span> <span class="o">=</span> <span class="n">identity</span>
@@ -8014,6 +8025,7 @@ model    : gpt-4o-mini | strict: False
 <span class="s2">        &lt;b&gt;category&lt;/b&gt; </span><span class="si">{</span><span class="n">_html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">category</span> <span class="ow">or</span> <span class="s1">'-'</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;br&gt;</span>
 <span class="s2">        &lt;b&gt;barcode&lt;/b&gt; </span><span class="si">{</span><span class="n">_html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">barcode</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">'-'</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;br&gt;</span>
 <span class="s2">        &lt;b&gt;confidence&lt;/b&gt; </span><span class="si">{</span><span class="n">i</span><span class="o">.</span><span class="n">confidence</span><span class="si">}</span><span class="s2">&lt;br&gt;</span>
+<span class="s2">        &lt;b&gt;search&lt;/b&gt; </span><span class="si">{</span><span class="n">_html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">i</span><span class="o">.</span><span class="n">search_query</span> <span class="ow">or</span> <span class="s1">'-'</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;br&gt;</span>
 <span class="s2">        &lt;b&gt;ocr&lt;/b&gt; </span><span class="si">{</span><span class="n">_html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">ocr</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;/div&gt;&lt;/div&gt;</span>
 <span class="s2">      &lt;div class="pg-col"&gt;</span><span class="si">{</span><span class="n">_src_label</span><span class="p">(</span><span class="n">bundle</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;div class="pg-h"&gt;Retrieval (OFF / OPF)&lt;/div&gt;</span>
 <span class="s2">        &lt;div class="pg-row"&gt;&lt;b&gt;canonical&lt;/b&gt; </span><span class="si">{</span><span class="n">_html</span><span class="o">.</span><span class="n">escape</span><span class="p">(</span><span class="n">bundle</span><span class="o">.</span><span class="n">canonical_name</span> <span class="ow">or</span> <span class="s1">'-'</span><span class="p">)</span><span class="si">}</span><span class="s2">&lt;br&gt;</span>
@@ -8055,7 +8067,7 @@ model    : gpt-4o-mini | strict: False
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bed13758">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bb9d834d">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8066,7 +8078,7 @@ with a hit/miss badge.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=20e3ca9b">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=91682950">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8088,8 +8100,8 @@ with a hit/miss badge.</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>[retrieve] OFF search failed: HTTPSConnectionPool(host='search.openfoodfacts.org', port=443): Max retries exceeded with url: /search?q=Duracell+AA+Batteries+Power+Boost+24+pack&amp;page_size=1&amp;fields=code%2Cproduct_name%2Cgeneric_name%2Cbrands%2Ccategories_tags%2Cimage_front_url%2Cimage_url%2Cquantity (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
-[retrieve] OPF search unavailable: HTTPSConnectionPool(host='world.openproductsfacts.org', port=443): Max retries exceeded with url: /cgi/search.pl?search_terms=Duracell+AA+Batteries+Power+Boost+24+pack&amp;search_simple=1&amp;action=process&amp;json=1&amp;page_size=1 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+<pre>[retrieve] OFF search failed ('Duracell AA Batteries 24 pack'): HTTPSConnectionPool(host='search.openfoodfacts.org', port=443): Max retries exceeded with url: /search?q=Duracell+AA+Batteries+24+pack&amp;page_size=5&amp;fields=code%2Cproduct_name%2Cgeneric_name%2Cbrands%2Ccategories_tags%2Cimage_front_url%2Cimage_url%2Cquantity (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+[retrieve] OPF search unavailable: HTTPSConnectionPool(host='world.openproductsfacts.org', port=443): Max retries exceeded with url: /cgi/search.pl?search_terms=Duracell+AA+Batteries+24+pack&amp;search_simple=1&amp;action=process&amp;json=1&amp;page_size=5 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
 [retrieve] no catalogue hit; using offline bundle
 </pre>
 </div>
@@ -8120,6 +8132,7 @@ with a hit/miss badge.</p>
 <b>category</b> household<br/>
 <b>barcode</b> None<br/>
 <b>confidence</b> 0.9<br/>
+<b>search</b> Duracell AA Batteries 24 pack<br/>
 <b>ocr</b> DURACELL POWER BOOST AA 24</div></div>
 <div class="pg-col"><span class="pg-badge pg-demo">demo image (sidecar)</span><div class="pg-h">Retrieval (OFF / OPF)</div>
 <div class="pg-row"><b>canonical</b> Duracell AA Batteries Power Boost 24 pack<br/>
@@ -8132,8 +8145,8 @@ with a hit/miss badge.</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>[retrieve] OFF search failed: HTTPSConnectionPool(host='search.openfoodfacts.org', port=443): Max retries exceeded with url: /search?q=Marlboro+Cigarettes+Smooth+Original+Flavor+20+pack&amp;page_size=1&amp;fields=code%2Cproduct_name%2Cgeneric_name%2Cbrands%2Ccategories_tags%2Cimage_front_url%2Cimage_url%2Cquantity (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
-[retrieve] OPF search unavailable: HTTPSConnectionPool(host='world.openproductsfacts.org', port=443): Max retries exceeded with url: /cgi/search.pl?search_terms=Marlboro+Cigarettes+Smooth+Original+Flavor+20+pack&amp;search_simple=1&amp;action=process&amp;json=1&amp;page_size=1 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+<pre>[retrieve] OFF search failed ('Marlboro Cigarettes 20 pack'): HTTPSConnectionPool(host='search.openfoodfacts.org', port=443): Max retries exceeded with url: /search?q=Marlboro+Cigarettes+20+pack&amp;page_size=5&amp;fields=code%2Cproduct_name%2Cgeneric_name%2Cbrands%2Ccategories_tags%2Cimage_front_url%2Cimage_url%2Cquantity (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+[retrieve] OPF search unavailable: HTTPSConnectionPool(host='world.openproductsfacts.org', port=443): Max retries exceeded with url: /cgi/search.pl?search_terms=Marlboro+Cigarettes+20+pack&amp;search_simple=1&amp;action=process&amp;json=1&amp;page_size=5 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
 [retrieve] no catalogue hit; using offline bundle
 </pre>
 </div>
@@ -8164,6 +8177,7 @@ with a hit/miss badge.</p>
 <b>category</b> tobacco<br/>
 <b>barcode</b> None<br/>
 <b>confidence</b> 0.9<br/>
+<b>search</b> Marlboro Cigarettes 20 pack<br/>
 <b>ocr</b> Marlboro Filter Cigarettes Smooth Original Flavor</div></div>
 <div class="pg-col"><span class="pg-badge pg-miss">no catalogue hit</span><div class="pg-h">Retrieval (OFF / OPF)</div>
 <div class="pg-row"><b>canonical</b> Marlboro Cigarettes Smooth Original Flavor 20 pack<br/>
@@ -8176,8 +8190,8 @@ with a hit/miss badge.</p>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
 <div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
-<pre>[retrieve] OFF search failed: HTTPSConnectionPool(host='search.openfoodfacts.org', port=443): Max retries exceeded with url: /search?q=Flying+Horse+%28%E9%A3%9E%E9%A9%AC%29+Cigarettes+20+pack&amp;page_size=1&amp;fields=code%2Cproduct_name%2Cgeneric_name%2Cbrands%2Ccategories_tags%2Cimage_front_url%2Cimage_url%2Cquantity (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
-[retrieve] OPF search unavailable: HTTPSConnectionPool(host='world.openproductsfacts.org', port=443): Max retries exceeded with url: /cgi/search.pl?search_terms=Flying+Horse+%28%E9%A3%9E%E9%A9%AC%29+Cigarettes+20+pack&amp;search_simple=1&amp;action=process&amp;json=1&amp;page_size=1 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+<pre>[retrieve] OFF search failed ('Flying Horse (飞马) Cigarettes 20 pack'): HTTPSConnectionPool(host='search.openfoodfacts.org', port=443): Max retries exceeded with url: /search?q=Flying+Horse+%28%E9%A3%9E%E9%A9%AC%29+Cigarettes+20+pack&amp;page_size=5&amp;fields=code%2Cproduct_name%2Cgeneric_name%2Cbrands%2Ccategories_tags%2Cimage_front_url%2Cimage_url%2Cquantity (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
+[retrieve] OPF search unavailable: HTTPSConnectionPool(host='world.openproductsfacts.org', port=443): Max retries exceeded with url: /cgi/search.pl?search_terms=Flying+Horse+%28%E9%A3%9E%E9%A9%AC%29+Cigarettes+20+pack&amp;search_simple=1&amp;action=process&amp;json=1&amp;page_size=5 (Caused by ProxyError('Unable to connect to proxy', OSError('Tunnel connection failed: 403 Forbidden')))
 [retrieve] no catalogue hit; using offline bundle
 </pre>
 </div>
@@ -8208,6 +8222,7 @@ with a hit/miss badge.</p>
 <b>category</b> tobacco<br/>
 <b>barcode</b> None<br/>
 <b>confidence</b> 0.85<br/>
+<b>search</b> Flying Horse (飞马) Cigarettes 20 pack<br/>
 <b>ocr</b> 飞马 本公司提示 吸烟有害健康 请勿在禁烟场所吸烟</div></div>
 <div class="pg-col"><span class="pg-badge pg-miss">no catalogue hit</span><div class="pg-h">Retrieval (OFF / OPF)</div>
 <div class="pg-row"><b>canonical</b> Flying Horse (飞马) Cigarettes 20 pack<br/>
@@ -8220,7 +8235,7 @@ with a hit/miss badge.</p>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=9601fc24">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a170d993">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8230,7 +8245,7 @@ with a hit/miss badge.</p>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=75cba4e2">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=f8bdd98e">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8280,30 +8295,30 @@ with a hit/miss badge.</p>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jupyter-widgets jp-OutputArea-output" id="ecd2878c-684a-401b-87bd-7d781b8feed0" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output" id="9087b8a3-5be9-472e-87cb-158fcb930d46" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('ecd2878c-684a-401b-87bd-7d781b8feed0');
+var element = document.getElementById('9087b8a3-5be9-472e-87cb-158fcb930d46');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "8bb660b90fe34293a83d29214ccb96f4", "version_major": 2, "version_minor": 0}
+{"model_id": "1dbf9355009f4e089fc702b324d82d9a", "version_major": 2, "version_minor": 0}
 </script>
 </div>
 </div>
 <div class="jp-OutputArea-child">
 <div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
-<div class="jupyter-widgets jp-OutputArea-output" id="7a3027a2-ff05-45eb-9f20-741dd882c747" tabindex="0">
+<div class="jupyter-widgets jp-OutputArea-output" id="d63a9a82-57c3-4cea-9643-3f23b78fa03c" tabindex="0">
 <script type="text/javascript">
-var element = document.getElementById('7a3027a2-ff05-45eb-9f20-741dd882c747');
+var element = document.getElementById('d63a9a82-57c3-4cea-9643-3f23b78fa03c');
 </script>
 <script type="application/vnd.jupyter.widget-view+json">
-{"model_id": "20674d1a9f494f56a0017836aad4ca7f", "version_major": 2, "version_minor": 0}
+{"model_id": "a9e9f7fb0d6d40f5b4d1397340d589b5", "version_major": 2, "version_minor": 0}
 </script>
 </div>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=a9b73983">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=e027dc27">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8314,7 +8329,7 @@ by <strong>barcode</strong> (works for food <em>and</em> non-food). Edit and re-
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=699b044d">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=3a97da56">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8346,7 +8361,7 @@ by <strong>barcode</strong> (works for food <em>and</em> non-food). Edit and re-
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=204041e5">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=b7bac833">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8381,7 +8396,7 @@ opf 5000394000000 -&gt; error: HTTPSConnectionPool(host='world.openproductsfacts
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=9ef4d709">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=6f89a4f5">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -8400,6 +8415,6 @@ only by <strong>barcode</strong>. A "no catalogue hit" badge is expected for non
 </main>
 </body>
 <script type="application/vnd.jupyter.widget-state+json">
-{"state": {"20674d1a9f494f56a0017836aad4ca7f": {"model_module": "@jupyter-widgets\/output", "model_module_version": "1.0.0", "model_name": "OutputModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/output", "_model_module_version": "1.0.0", "_model_name": "OutputModel", "_view_count": null, "_view_module": "@jupyter-widgets\/output", "_view_module_version": "1.0.0", "_view_name": "OutputView", "layout": "IPY_MODEL_cdaab0b622b046f481c1a7455cf6aba4", "msg_id": "", "outputs": [], "tabbable": null, "tooltip": null}}, "54cd0fcfad714bfeb0c57ba0b58cb999": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "71fbc678cb884e81a5cd98c8d149956a": {"model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "model_name": "ButtonStyleModel", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ButtonStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "button_color": null, "font_family": null, "font_size": null, "font_style": null, "font_variant": null, "font_weight": null, "text_color": null, "text_decoration": null}}, "8bb660b90fe34293a83d29214ccb96f4": {"model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "model_name": "FileUploadModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FileUploadModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "FileUploadView", "accept": "image\/*", "button_style": "", "description": "Upload", "description_allow_html": false, "disabled": false, "error": "", "icon": "upload", "layout": "IPY_MODEL_54cd0fcfad714bfeb0c57ba0b58cb999", "multiple": true, "style": "IPY_MODEL_71fbc678cb884e81a5cd98c8d149956a", "tabbable": null, "tooltip": null, "value": []}}, "cdaab0b622b046f481c1a7455cf6aba4": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}}, "version_major": 2, "version_minor": 0}
+{"state": {"1dbf9355009f4e089fc702b324d82d9a": {"model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "model_name": "FileUploadModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "FileUploadModel", "_view_count": null, "_view_module": "@jupyter-widgets\/controls", "_view_module_version": "2.0.0", "_view_name": "FileUploadView", "accept": "image\/*", "button_style": "", "description": "Upload", "description_allow_html": false, "disabled": false, "error": "", "icon": "upload", "layout": "IPY_MODEL_b15768340b71436bbe05c36aa15c5d61", "multiple": true, "style": "IPY_MODEL_7b68bbb6948b4eb3ad13b680c0a51b57", "tabbable": null, "tooltip": null, "value": []}}, "49f678fa451f428b8aa3f04b597ff054": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}, "7b68bbb6948b4eb3ad13b680c0a51b57": {"model_module": "@jupyter-widgets\/controls", "model_module_version": "2.0.0", "model_name": "ButtonStyleModel", "state": {"_model_module": "@jupyter-widgets\/controls", "_model_module_version": "2.0.0", "_model_name": "ButtonStyleModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "StyleView", "button_color": null, "font_family": null, "font_size": null, "font_style": null, "font_variant": null, "font_weight": null, "text_color": null, "text_decoration": null}}, "a9e9f7fb0d6d40f5b4d1397340d589b5": {"model_module": "@jupyter-widgets\/output", "model_module_version": "1.0.0", "model_name": "OutputModel", "state": {"_dom_classes": [], "_model_module": "@jupyter-widgets\/output", "_model_module_version": "1.0.0", "_model_name": "OutputModel", "_view_count": null, "_view_module": "@jupyter-widgets\/output", "_view_module_version": "1.0.0", "_view_name": "OutputView", "layout": "IPY_MODEL_49f678fa451f428b8aa3f04b597ff054", "msg_id": "", "outputs": [], "tabbable": null, "tooltip": null}}, "b15768340b71436bbe05c36aa15c5d61": {"model_module": "@jupyter-widgets\/base", "model_module_version": "2.0.0", "model_name": "LayoutModel", "state": {"_model_module": "@jupyter-widgets\/base", "_model_module_version": "2.0.0", "_model_name": "LayoutModel", "_view_count": null, "_view_module": "@jupyter-widgets\/base", "_view_module_version": "2.0.0", "_view_name": "LayoutView", "align_content": null, "align_items": null, "align_self": null, "border_bottom": null, "border_left": null, "border_right": null, "border_top": null, "bottom": null, "display": null, "flex": null, "flex_flow": null, "grid_area": null, "grid_auto_columns": null, "grid_auto_flow": null, "grid_auto_rows": null, "grid_column": null, "grid_gap": null, "grid_row": null, "grid_template_areas": null, "grid_template_columns": null, "grid_template_rows": null, "height": null, "justify_content": null, "justify_items": null, "left": null, "margin": null, "max_height": null, "max_width": null, "min_height": null, "min_width": null, "object_fit": null, "object_position": null, "order": null, "overflow": null, "padding": null, "right": null, "top": null, "visibility": null, "width": null}}}, "version_major": 2, "version_minor": 0}
 </script>
 </html>

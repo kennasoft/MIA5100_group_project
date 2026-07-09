@@ -11,7 +11,7 @@ from .capture import preprocess
 from .recognise import recognise
 from .retrieve import retrieve
 from .generate import generate
-from .imagematch import choose_image
+from .imagematch import select_image
 from .guardrails import apply
 from . import config
 
@@ -21,9 +21,10 @@ def run(image_path: str):
     identity = recognise(clean)
     bundle = retrieve(identity)
     draft = generate(identity, bundle)
-    img_ref, swapped = choose_image(clean, bundle)
+    img_ref, swapped, enhanced = select_image(clean, bundle)
     draft.image_url = img_ref
     draft.flags.image_swapped = swapped
+    draft.flags.image_enhanced = enhanced
     return apply(draft, identity, bundle)
 
 

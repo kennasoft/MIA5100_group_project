@@ -16,6 +16,7 @@ class ProductIdentity:
     ocr_text: str = ""
     barcode: Optional[str] = None
     confidence: float = 0.0
+    search_query: str = ""  # short brand+product+size query for retrieval (not the rich label)
     catalogue_image_url: Optional[str] = None  # optional: force a demo catalogue image (offline)
 
 
@@ -42,6 +43,7 @@ class RetrievedBundle:
     category_tags: List[str] = field(default_factory=list)
     price: PriceInfo = field(default_factory=PriceInfo)
     images: List[CandidateImage] = field(default_factory=list)
+    ambiguous: bool = False  # several close/weak search hits -> pick uncertain, route to review
 
 
 @dataclass
@@ -49,7 +51,9 @@ class Flags:
     age_restricted: bool = False
     low_confidence: bool = False
     unverifiable_claims: List[str] = field(default_factory=list)
-    image_swapped: bool = False
+    image_swapped: bool = False      # adopted an external catalogue image
+    image_enhanced: bool = False     # cleaned the user's own photo (background removal)
+    retrieval_ambiguous: bool = False  # catalogue match was uncertain (several close/weak hits)
 
 
 @dataclass
