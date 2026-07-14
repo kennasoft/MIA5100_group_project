@@ -138,9 +138,11 @@ def _call(prompt: str, image_path: str | None) -> dict:
 _IDENTIFY_PROMPT = (
     "You are identifying a single packaged retail product from a photo for a corner-store "
     "catalogue. Read the packaging text. Return ONLY a JSON object with keys: "
-    "brand, product, variant, size, category, ocr_text, barcode, confidence. "
+    "brand, product, variant, size, category, ocr_text, barcode, confidence, search_query. "
     "category is one of: confectionery, snacks, beverage, frozen, tobacco, alcohol, household, other. "
     "size includes units (e.g. '45 g', '500 mL'). barcode is the digits if visible else null. "
+    "search_query is a SHORT catalogue-search phrase — brand + core product type + size ONLY "
+    "(e.g. 'Duracell AA batteries 24'); OMIT marketing words like 'Power Boost', slogans and adjectives. "
     "confidence is 0..1 for how sure you are of the exact product. Use empty string for unknown fields."
 )
 

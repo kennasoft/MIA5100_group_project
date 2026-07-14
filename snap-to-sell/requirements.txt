@@ -15,4 +15,8 @@ numpy
 # torch
 # open_clip_torch
 
+# Optional image enhancement — background removal to make catalogue-style photos (SNAP_IMAGE_MODE=enhance)
+# rembg
+# onnxruntime
+
 # No SDKs needed: Anthropic (Claude), Gemini and OpenAI are all called over plain HTTPS via `requests`.
