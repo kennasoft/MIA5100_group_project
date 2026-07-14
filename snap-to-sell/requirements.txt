@@ -5,6 +5,7 @@ opencv-python-headless
 imagehash          # perceptual-hash image match fallback (CPU, no torch)
 pandas             # evaluation harness
 numpy
+python-dotenv      # auto-load .env so notebooks/app/eval read your keys with no manual paste
 
 # Optional
 # scikit-learn     # extra metrics

@@ -2,8 +2,32 @@
 to switch providers or thresholds. See .env.example.
 
 Values are read at import; call ``refresh()`` after changing ``os.environ`` at runtime
-(e.g. from a notebook Configuration cell) to re-read them."""
+(e.g. from a notebook Configuration cell) to re-read them.
+
+The nearest ``.env`` is loaded automatically (via python-dotenv, if installed) so running a
+notebook or the app from inside the repo picks up your keys with no manual paste. Variables
+already exported in the real shell win — ``.env`` never clobbers them (``override=False``)."""
 import os
+from pathlib import Path
+
+
+def _load_dotenv():
+    """Load the nearest .env into os.environ without overriding vars already set in the shell.
+    Anchored to the repo root (this file is snap-to-sell/src/snap_to_sell/config.py, so the root
+    is parents[2]) so it works regardless of the current working directory. No-op if python-dotenv
+    is not installed or no .env exists."""
+    try:
+        from dotenv import load_dotenv
+    except Exception:
+        return  # dotenv optional; plain environment variables still work
+    for _base in (Path(__file__).resolve().parents[2], Path.cwd()):
+        _env = _base / ".env"
+        if _env.is_file():
+            load_dotenv(_env, override=False)
+            break
+
+
+_load_dotenv()
 
 # Open Food Facts asks for a descriptive User-Agent (app name + contact). Override with SNAP_USER_AGENT.
 USER_AGENT = os.getenv("SNAP_USER_AGENT", "snap-to-sell/0.1 (MIA5100 project)")
@@ -27,6 +51,7 @@ OPF_SEARCH_URL = "https://world.openproductsfacts.org/cgi/search.pl"  # legacy (
 OPF_PRODUCT_URL = "https://world.openproductsfacts.org/api/v2/product/{code}.json"
 OPEN_PRICES_URL = "https://prices.openfoodfacts.org/api/v1/prices"
 SERPER_SHOPPING_URL = "https://google.serper.dev/shopping"  # Serper.dev Google Shopping
+SERPER_SEARCH_URL = "https://google.serper.dev/search"      # Serper.dev web search (barcode -> name)
 ECOMSOURCE_URL = "https://api.ecomsource.ai/api/v1"  # needs SNAP_ECOMSOURCE_ACCESS_KEY + _SECRET_KEY
 
 
@@ -42,9 +67,13 @@ def _truthy(name):
 
 
 def refresh():
-    """Re-read all env-derived settings into module globals. Call after editing os.environ."""
-    global CONFIDENCE_THRESHOLD, IMAGE_MATCH_THRESHOLD, STRICT_PROVIDER, ALWAYS_SWAP, IMAGE_MODE
+    """Re-read all env-derived settings into module globals. Call after editing os.environ.
+    Reloads .env first (without overriding anything already set) so a fresh key in .env is picked
+    up on re-read, while notebook os.environ overrides still win."""
+    _load_dotenv()
+    global CONFIDENCE_THRESHOLD, IMAGE_MATCH_THRESHOLD, STRICT_PROVIDER, ALWAYS_SWAP, IMAGE_MODE, LOG_ENABLED
     global CURRENCY, HTTP_TIMEOUT, LLM_PROVIDER, RETRIEVE_BACKEND, SERPER_API_KEY, SHOPPING_GL
+    global BARCODE_SOURCE
     global PREFERRED_SOURCES, DEMOTED_SOURCES, PREFERRED_CURRENCIES
     global ECOMSOURCE_ACCESS_KEY, ECOMSOURCE_SECRET_KEY
     global ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY
@@ -64,6 +93,9 @@ def refresh():
     # Retrieval backend: "off" = Open Food Facts / Open Products Facts (free, no key);
     # "shopping" = Serper.dev Google Shopping (real retailer price + clean image; needs SERPER_API_KEY).
     RETRIEVE_BACKEND = os.getenv("SNAP_RETRIEVE_BACKEND", "off").strip().lower()
+    # Barcode-detail source after OFF/OPF: "websearch" (Serper web search + LLM name extraction —
+    # reuses the Serper key, cheap) | "ecomsource" (EcomSource API) | "none".
+    BARCODE_SOURCE = os.getenv("SNAP_BARCODE_SOURCE", "websearch").strip().lower()
     SERPER_API_KEY = os.getenv("SERPER_API_KEY", "")
     SHOPPING_GL = os.getenv("SNAP_SHOPPING_GL", "ca")  # region for Google Shopping prices
     PREFERRED_SOURCES = [s.strip().lower() for s in
@@ -77,6 +109,8 @@ def refresh():
                             os.getenv("SNAP_PREFERRED_CURRENCIES", "CAD,USD").split(",") if c.strip()]
     CURRENCY = os.getenv("SNAP_CURRENCY", "CAD")
     HTTP_TIMEOUT = _f("SNAP_HTTP_TIMEOUT", "10")
+    # Per-image trace log: write <image-name>-log.txt with every stage's output. On by default.
+    LOG_ENABLED = os.getenv("SNAP_LOG", "1").strip().lower() in {"1", "true", "yes", "on"}
 
     # hosted multimodal provider (recognition + generation)
     # SNAP_LLM_PROVIDER = "openai" | "anthropic" | "gemini" | "" (empty -> auto-detect, else offline)
