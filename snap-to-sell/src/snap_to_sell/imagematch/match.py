@@ -8,10 +8,11 @@ so the threshold gates adoption.
 """
 import io
 import os
+from dataclasses import asdict
 
 import requests
 
-from .. import config, trace
+from .. import config, trace, providers
 from ..config import IMAGE_MATCH_THRESHOLD, HTTP_TIMEOUT, USER_AGENT
 
 _clip = None  # lazy cache: (model, preprocess, tokenizer) or False
@@ -136,42 +137,88 @@ def _is_better(candidate_ref, base_path, margin=0.95):
     return cq[0] >= bq[0] * margin and cq[1] >= bq[1] * margin
 
 
-def select_image(original_path, bundle):
-    """Return (image_ref, swapped, enhanced) per config.IMAGE_MODE:
-      - "off":     keep the original photo.
-      - "swap":    adopt the retrieved catalogue image only if it matches and is not worse.
-      - "enhance": clean the user's own photo; adopt an external image only if it beats it.
-    """
-    mode = config.IMAGE_MODE
-    # best retrieved candidate that clears the same-SKU match gate (or the demo override)
+def _llm_select(original_path, bundle, identity):
+    """LLM same-SKU judge over the top-K retrieved candidates. Returns (ref, confidence, reason)
+    for the first candidate the model confirms is the same product at >= the confidence floor,
+    else (None, 0.0, ""). Raises NoProviderError only if the model is unreachable (offline)."""
+    ident = asdict(identity) if (identity is not None and not isinstance(identity, dict)) else identity
+    for cand in bundle.images[:config.LLM_MATCH_TOPK]:
+        try:
+            v = providers.verify_same_product(original_path, cand.url, ident)
+        except providers.NoProviderError:
+            raise
+        except Exception as e:  # noqa: BLE001 — candidate image failed to fetch/parse; skip it
+            trace.log("IMAGE", f"LLM verify skipped ({type(e).__name__}) for {str(cand.url)[:70]}")
+            continue
+        cand.match_score = v["confidence"]
+        cand.match_reason = v["reason"]
+        trace.log("IMAGE", f"LLM same-SKU: {v['same_product']} conf={v['confidence']:.2f}",
+                  {"url": cand.url, "reason": v["reason"]})
+        if v["same_product"] and v["confidence"] >= config.LLM_MATCH_MIN_CONF:
+            return cand.url, v["confidence"], v["reason"]
+    return None, 0.0, ""
+
+
+def _numeric_select(original_path, bundle):
+    """Fallback same-SKU gate: OpenCLIP/phash similarity vs the match threshold (used offline or
+    when SNAP_IMAGE_MATCH_LLM is disabled)."""
     best_ref, best = None, 0.0
     for cand in bundle.images:
         sc = match_score(original_path, cand.url)
         cand.match_score = sc
         if sc >= best:
             best_ref, best = cand.url, sc
-    candidate = best_ref if (best_ref and (config.ALWAYS_SWAP or best >= IMAGE_MATCH_THRESHOLD)) else None
-    trace.log("IMAGE", f"mode={mode}; best same-SKU match={round(best, 3)}; "
-              f"candidate={'adoptable' if candidate else 'none / below match gate'}",
-              [{"source": c.source, "url": c.url, "match_score": round(c.match_score, 3)}
-               for c in bundle.images] or None)
+    if best_ref and (config.ALWAYS_SWAP or best >= IMAGE_MATCH_THRESHOLD):
+        return best_ref, best, "numeric similarity"
+    return None, best, ""
+
+
+def _select_candidate(original_path, bundle, identity):
+    """Pick an adoptable same-SKU catalogue image (or None). Prefers the LLM judge; falls back to
+    the numeric gate offline or when the LLM is disabled. When the LLM runs and rejects every
+    candidate, that verdict is authoritative (we do NOT fall through to the brittle numeric gate)."""
+    if not bundle.images:
+        return None, 0.0, ""
+    if config.IMAGE_MATCH_LLM and config.active_provider():
+        try:
+            return _llm_select(original_path, bundle, identity)
+        except providers.NoProviderError:
+            pass  # became offline mid-run -> numeric fallback
+    return _numeric_select(original_path, bundle)
+
+
+def select_image(original_path, bundle, identity=None):
+    """Return (image_ref, swapped, enhanced) per config.IMAGE_MODE:
+      - "off":     keep the original photo.
+      - "swap":    adopt a same-SKU catalogue image whenever the match gate confirms one.
+      - "enhance": clean the user's own photo; adopt an external image only if it is also a
+                   confirmed match AND not lower quality (so we never downgrade a good photo).
+    Same-SKU confirmation uses the vision LLM when available (see _select_candidate).
+    """
+    mode = config.IMAGE_MODE
+    candidate, score, reason = _select_candidate(original_path, bundle, identity)
+    trace.log("IMAGE", f"mode={mode}; candidate={'adoptable' if candidate else 'none'}; "
+              f"score={round(score, 3)}; {reason}",
+              [{"source": c.source, "url": c.url, "match_score": round(c.match_score, 3),
+                "reason": c.match_reason} for c in bundle.images] or None)
 
     if mode == "off":
         return original_path, False, False
 
     if mode == "swap":
-        if candidate and (config.ALWAYS_SWAP or _is_better(candidate, original_path)):
-            trace.log("IMAGE", "swap mode: adopted external catalogue image")
+        # In swap mode the user wants the catalogue image: a confirmed same-SKU match is enough.
+        if candidate:
+            trace.log("IMAGE", "swap mode: adopted confirmed same-SKU catalogue image")
             return candidate, True, False
-        trace.log("IMAGE", "swap mode: kept original photo (no better candidate)")
+        trace.log("IMAGE", "swap mode: kept original photo (no confirmed match)")
         return original_path, False, False
 
-    # default: "enhance"
+    # default: "enhance" — keep the owner's (cleaned) photo unless a confirmed match is also better.
     cleaned = enhance_image(original_path)
     trace.log("IMAGE", "enhance mode: cleaned own photo = "
               f"{cleaned or 'unavailable (rembg not installed) -> kept normalized photo'}")
     base = cleaned or original_path
     if candidate and (config.ALWAYS_SWAP or _is_better(candidate, base)):
-        trace.log("IMAGE", "enhance mode: external image beat own photo -> swapped")
+        trace.log("IMAGE", "enhance mode: confirmed match beat own photo -> swapped")
         return candidate, True, bool(cleaned)
     return base, False, bool(cleaned)

@@ -4,27 +4,60 @@ to switch providers or thresholds. See .env.example.
 Values are read at import; call ``refresh()`` after changing ``os.environ`` at runtime
 (e.g. from a notebook Configuration cell) to re-read them.
 
-The nearest ``.env`` is loaded automatically (via python-dotenv, if installed) so running a
-notebook or the app from inside the repo picks up your keys with no manual paste. Variables
-already exported in the real shell win — ``.env`` never clobbers them (``override=False``)."""
+The nearest ``.env`` is loaded automatically so running a notebook, the app, or the eval
+harness from inside the repo picks up your keys with no manual paste. It uses python-dotenv
+when available and otherwise falls back to a tiny built-in parser, so ``.env`` is read even
+if python-dotenv is not installed. Variables already exported in the real shell always win —
+``.env`` never clobbers them."""
 import os
 from pathlib import Path
+
+
+def _parse_env_file(path):
+    """Minimal .env parser used when python-dotenv is not installed. Handles KEY=VALUE lines,
+    comments, blank lines, an optional leading ``export``, and single/double quoted values."""
+    data = {}
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export "):]
+        if "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        key, val = key.strip(), val.strip()
+        if not key:
+            continue
+        if val[:1] in ("'", '"'):                       # quoted: take up to the closing quote
+            end = val.find(val[0], 1)
+            val = val[1:end] if end != -1 else val[1:]
+        else:                                            # unquoted: strip a trailing inline comment
+            val = val.split(" #", 1)[0].strip()
+        data[key] = val
+    return data
 
 
 def _load_dotenv():
     """Load the nearest .env into os.environ without overriding vars already set in the shell.
     Anchored to the repo root (this file is snap-to-sell/src/snap_to_sell/config.py, so the root
-    is parents[2]) so it works regardless of the current working directory. No-op if python-dotenv
-    is not installed or no .env exists."""
-    try:
-        from dotenv import load_dotenv
-    except Exception:
-        return  # dotenv optional; plain environment variables still work
+    is parents[2]) so it works regardless of the current working directory. No-op if no .env
+    exists. Works with or without python-dotenv installed."""
     for _base in (Path(__file__).resolve().parents[2], Path.cwd()):
         _env = _base / ".env"
-        if _env.is_file():
-            load_dotenv(_env, override=False)
-            break
+        if not _env.is_file():
+            continue
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(_env, override=False)   # don't clobber real shell env
+        except Exception:
+            # python-dotenv missing (or failed) -> built-in fallback, same non-clobbering rule.
+            try:
+                for _k, _v in _parse_env_file(_env).items():
+                    os.environ.setdefault(_k, _v)
+            except Exception:
+                pass
+        return  # first .env found wins
 
 
 _load_dotenv()
@@ -78,9 +111,21 @@ def refresh():
     global ECOMSOURCE_ACCESS_KEY, ECOMSOURCE_SECRET_KEY
     global ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY
     global ANTHROPIC_MODEL, GEMINI_MODEL, OPENAI_MODEL
+    global IMAGE_MATCH_LLM, LLM_MATCH_MIN_CONF, LLM_MATCH_TOPK, PRICE_CONFIDENCE_GATE
 
     CONFIDENCE_THRESHOLD = _f("SNAP_CONFIDENCE_THRESHOLD", "0.5")     # below -> route to review
     IMAGE_MATCH_THRESHOLD = _f("SNAP_IMAGE_MATCH_THRESHOLD", "0.80")  # adopt catalogue image if >=
+    # Same-SKU image verification via the vision LLM (compares the shelf photo with each candidate
+    # catalogue image). On by default; falls back to the numeric CLIP/phash gate when offline.
+    IMAGE_MATCH_LLM = os.getenv("SNAP_IMAGE_MATCH_LLM", "1").strip().lower() not in {"0", "false", "no", "off"}
+    LLM_MATCH_MIN_CONF = _f("SNAP_LLM_MATCH_MIN_CONF", "0.7")  # adopt only if LLM confidence >= this
+    try:
+        LLM_MATCH_TOPK = max(1, int(os.getenv("SNAP_LLM_MATCH_TOPK", "2")))  # verify top-K candidates
+    except ValueError:
+        LLM_MATCH_TOPK = 2
+    # Confidence gate: decline to price (route to review) when a shopping match is ambiguous or its
+    # brand can't be confirmed, instead of publishing a wrong-product price. On by default.
+    PRICE_CONFIDENCE_GATE = os.getenv("SNAP_PRICE_CONFIDENCE_GATE", "1").strip().lower() not in {"0", "false", "no", "off"}
     # Provider-only mode: recognition never uses the offline sidecar, so a wrong result proves
     # the hosted model failed (confirms real inference is running).
     STRICT_PROVIDER = _truthy("SNAP_STRICT_PROVIDER")

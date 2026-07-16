@@ -35,6 +35,21 @@ class CandidateImage:
     licence: str = ""
     source: str = ""
     match_score: float = 0.0
+    match_reason: str = ""  # why the same-SKU judge (LLM) accepted/rejected this image
+
+
+@dataclass
+class RankedCandidate:
+    """A retrieval candidate considered during the pick, kept for reporting/audit."""
+    title: str = ""
+    price: Optional[float] = None       # listing price as shown by the retailer
+    currency: str = ""
+    source: str = ""
+    image_url: str = ""
+    category: str = ""
+    score: float = 0.0                  # ranking score used to choose
+    detail: str = ""                    # human note: pack/retailer/currency signals
+    chosen: bool = False                # True for the candidate actually adopted
 
 
 @dataclass
@@ -44,6 +59,7 @@ class RetrievedBundle:
     price: PriceInfo = field(default_factory=PriceInfo)
     images: List[CandidateImage] = field(default_factory=list)
     ambiguous: bool = False  # several close/weak search hits -> pick uncertain, route to review
+    candidates: List[RankedCandidate] = field(default_factory=list)  # top ranked hits (for reporting)
 
 
 @dataclass
@@ -64,6 +80,7 @@ class DraftListing:
     price: PriceInfo = field(default_factory=PriceInfo)
     image_url: str = ""
     flags: Flags = field(default_factory=Flags)
+    candidates: List[RankedCandidate] = field(default_factory=list)  # retrieval candidates considered
 
 
 @dataclass

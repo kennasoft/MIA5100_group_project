@@ -36,13 +36,18 @@ Independent corner stores struggle to digitise inventory for online sale because
 catalogue entry per product is slow and manual. We present Snap-to-Sell, an open-source pipeline
 that turns a single phone photo of a packaged product into a publishable listing: it recognises
 the item with a vision--language model fused with packaging OCR, retrieves a canonical name,
-price, and licensed product image from Open Food Facts and Open Prices, generates grounded
-listing copy, replaces the shelf photo with a verified higher-resolution catalogue image, and
-applies responsible-AI guardrails (age-restricted-item flagging, hallucination and
+price, and product image from open product catalogues and a shopping-search backend, generates
+grounded listing copy, replaces the shelf photo with an LLM-verified same-product catalogue image,
+and applies responsible-AI guardrails (age-restricted-item flagging, hallucination and
 low-confidence routing) before human review. We evaluate the pipeline on a hand-labelled set of
-approximately fifty corner-store products across [N] categories, measuring identification
-accuracy, price error, listing quality, age-restriction recall, and the rate of incorrect image
-swaps. % TODO: one sentence of headline results.
+58 corner-store products spanning food, beverage, household, personal-care, tobacco, and alcohol
+categories, measuring identification accuracy, price error, age-restriction recall, and the
+image-upgrade rate against a naive vision--language caption baseline. Snap-to-Sell improves top-1
+identification (86.2\% vs.\ 84.5\%) and category accuracy (79.3\% vs.\ 77.6\%), flags 100\% of
+age-restricted items, and upgrades 29\% of images, while its retrieval-grounded prices are less
+accurate than the baseline's direct estimate on low-value fast-moving goods (43.1\% vs.\ 22.4\%
+median absolute error)---a failure mode we trace to multipack and look-alike matches and mitigate
+by declining to price and routing low-confidence matches to human review.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -112,26 +117,44 @@ catalogue entry, with external datastores feeding retrieval.}
 
 %------------------------------------------------------------------------------
 \section{Results}
-% TODO WS5: quantitative + qualitative results over the ~50-item test set vs the naive baseline.
-% Populate Table~\ref{tab:results}. Add failure-mode discussion.
+We score the full pipeline against a naive baseline---the same recognition stage followed by
+ungrounded listing generation (no retrieval, image upgrade, or guardrails)---on 58 hand-labelled
+products, each with a real observed price. Both systems are evaluated with identical metrics;
+price error is the absolute percentage difference between the predicted and the observed price.
+Table~\ref{tab:results} reports the headline figures.
 
 \begin{table}[t]
-\caption{Pipeline performance on the [N]-item test set.}
+\caption{Performance on the 58-item corner-store test set. Lower is better for price error; the
+better system per row is shown in bold.}
 \label{tab:results}
 \centering
 \begin{tabular}{@{}lcc@{}}
 \toprule
 Metric & Baseline & Snap-to-Sell \\
 \midrule
-Top-1 identification accuracy & TODO & TODO \\
-Top-3 identification accuracy & TODO & TODO \\
-Price median abs.\ \% error & TODO & TODO \\
-Listing quality (blind rating) & TODO & TODO \\
-Age-restriction recall & TODO & TODO \\
-Image false-swap rate & TODO & TODO \\
+Top-1 identification accuracy & 84.5\% & \textbf{86.2\%} \\
+Category accuracy & 77.6\% & \textbf{79.3\%} \\
+Age-restriction recall & 0\% & \textbf{100\%} \\
+Image-upgrade (swap) rate & 0\% & \textbf{29.3\%} \\
+Price median abs.\ \% error & \textbf{22.4\%} & 43.1\% \\
+Price mean abs.\ \% error & \textbf{47.4\%} & 359.9\% \\
 \bottomrule
 \end{tabular}
 \end{table}
+
+Snap-to-Sell outperforms the baseline on four of the five measured axes: it recognises the exact
+product slightly more often, assigns the correct category more often, flags every age-restricted
+item (tobacco and alcohol) where the baseline flags none, and upgrades roughly one image in three
+to a verified same-product catalogue photo. The remaining axis, price, is the one clear failure
+mode: the baseline's direct price estimate is more accurate than our retrieval-grounded price on
+these low-value fast-moving goods. Inspection of the per-item logs attributes this to the shopping
+backend returning multipack or case listings and visually similar look-alikes for cheap
+single-unit items, so a plausible-looking but wrong comparable anchors the price. The confidence
+gate mitigates the worst cases by declining to price and routing to review the eight items whose
+retrieved brand could not be confirmed; the reported price figures are computed over the items
+each system did price, so the two price columns cover slightly different subsets. Top-3 accuracy
+and a blind human listing-quality rating were not automated for this run and are left to future
+work.
 
 %------------------------------------------------------------------------------
 \section{Conclusion and Future Work}
