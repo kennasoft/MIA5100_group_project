@@ -7,15 +7,32 @@ Run from the snap-to-sell project root:
 Requires:
     src/snap_to_sell/providers.py  (vlm_identify, draft_listing, search_price)
     src/snap_to_sell/config.py
+    pip install imagehash requests opencv-python numpy
 
 Optional (uses full pipeline if present):
     src/snap_to_sell/pipeline.py   (run)
+
+NEW IN THIS VERSION
+    - Background-removed / cleaned product image via OpenCV GrabCut
+      (no rembg/onnxruntime/numba — avoids the llvmlite build issues
+      those pull in on some machines)
+    - Canonical "cleaner" image lookup against Open Food Facts, with a
+      perceptual-hash same-SKU similarity check before ever swapping the
+      user's photo for a catalogue one
 ═══════════════════════════════════════════════════════════════════════════════
 """
 import sys, os, io, base64, json, textwrap, time
 from pathlib import Path
 import streamlit as st
+import requests
+import numpy as np
+import cv2
 from PIL import Image
+
+try:
+    import imagehash
+except ImportError:
+    imagehash = None
 
 # ── Resolve project root so imports work whether you run from root or subfolder
 ROOT = Path(__file__).resolve().parent.parent
@@ -163,6 +180,15 @@ with st.sidebar:
 
     st.markdown("---")
     currency = st.selectbox("Currency", ["CAD", "USD"], index=0)
+
+    st.markdown("---")
+    enable_image_upgrade = st.checkbox("🖼️ Try to clean / find better product image", value=True)
+    similarity_threshold = st.slider(
+        "Same-SKU similarity threshold", 0.0, 1.0, 0.55, 0.05,
+        help="Minimum image similarity required before swapping in a catalogue photo. "
+             "Below this, the app keeps your original (background-removed) photo instead."
+    )
+
     st.caption("MIA 5100 — Snap-to-Sell demo")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -199,6 +225,141 @@ def apply_env():
         pass
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Image cleanup / canonical-image lookup helpers  (NEW)
+# ─────────────────────────────────────────────────────────────────────────────
+def clean_product_image(pil_img: Image.Image) -> Image.Image:
+    """
+    Remove background using OpenCV GrabCut, composite onto white.
+    Assumes the product is roughly centered in frame (true for most
+    "hold item in front of camera" shelf/counter photos). Falls back
+    to the original image untouched if anything goes wrong.
+    """
+    try:
+        img_rgb = np.array(pil_img.convert("RGB"))
+        img_bgr = cv2.cvtColor(img_rgb, cv2.COLOR_RGB2BGR)
+        h, w = img_bgr.shape[:2]
+
+        mask = np.zeros((h, w), np.uint8)
+        bgd_model = np.zeros((1, 65), np.float64)
+        fgd_model = np.zeros((1, 65), np.float64)
+
+        # Rectangle covering the central ~90% of the frame — GrabCut treats
+        # everything outside it as definite background to seed the cut.
+        rect = (int(w * 0.05), int(h * 0.05), int(w * 0.9), int(h * 0.9))
+
+        cv2.grabCut(img_bgr, mask, rect, bgd_model, fgd_model, 5, cv2.GC_INIT_WITH_RECT)
+        fg_mask = np.where((mask == 2) | (mask == 0), 0, 1).astype("uint8")
+
+        # If GrabCut collapsed to (near) nothing, bail out to the original
+        # rather than returning an all-white image.
+        if fg_mask.sum() < 0.02 * fg_mask.size:
+            return pil_img
+
+        white_bg = np.full_like(img_bgr, 255)
+        composited = np.where(fg_mask[:, :, np.newaxis] == 1, img_bgr, white_bg)
+        return Image.fromarray(cv2.cvtColor(composited, cv2.COLOR_BGR2RGB))
+    except Exception:
+        return pil_img
+
+
+def image_similarity(original: Image.Image, candidate: Image.Image) -> float:
+    """
+    0-1 perceptual-hash similarity between two images — the same-SKU
+    guardrail used before ever swapping in a catalogue photo.
+    Returns 1.0 (treated as "identical, don't block") if imagehash
+    isn't installed, so the app degrades gracefully rather than crashing.
+    """
+    if imagehash is None:
+        return 1.0
+    try:
+        h1 = imagehash.phash(original.convert("RGB"))
+        h2 = imagehash.phash(candidate.convert("RGB"))
+        return 1 - (h1 - h2) / 64.0
+    except Exception:
+        return 0.0
+
+
+def find_canonical_image(identity: dict) -> dict | None:
+    """
+    Search Open Food Facts by brand + product name (text search — no
+    barcode required). Returns {"image_url": str, "product_name": str}
+    for the first hit that has a product image, or None if nothing
+    usable was found.
+    """
+    brand = (identity.get("brand") or "").strip()
+    product = (identity.get("product") or "").strip()
+    query = f"{brand} {product}".strip()
+    if not query:
+        return None
+
+    try:
+        resp = requests.get(
+            "https://world.openfoodfacts.org/cgi/search.pl",
+            params={
+                "search_terms": query,
+                "search_simple": 1,
+                "action": "process",
+                "json": 1,
+                "page_size": 5,
+            },
+            timeout=6,
+        )
+        resp.raise_for_status()
+        products = resp.json().get("products", [])
+    except Exception:
+        return None
+
+    for p in products:
+        img_url = p.get("image_front_url") or p.get("image_url")
+        if img_url:
+            return {"image_url": img_url, "product_name": p.get("product_name", query)}
+    return None
+
+
+def download_image(url: str) -> Image.Image | None:
+    """Fetch a remote image and return it as a PIL Image, or None on failure."""
+    try:
+        resp = requests.get(url, timeout=6)
+        resp.raise_for_status()
+        return Image.open(io.BytesIO(resp.content)).convert("RGB")
+    except Exception:
+        return None
+
+
+def upgrade_image(original: Image.Image, identity: dict, sim_threshold: float) -> dict:
+    """
+    Full image-upgrade step: try to find a canonical catalogue photo for
+    the identified product; if found AND it passes the same-SKU similarity
+    check, use it. Otherwise fall back to a background-removed version of
+    the user's own photo. Always returns a dict with the fields the UI
+    needs, never raises.
+    """
+    out = {
+        "clean_image": None,
+        "image_source": "",
+        "image_similarity": None,
+        "image_swap_rejected": False,
+    }
+
+    canonical = find_canonical_image(identity)
+    if canonical:
+        candidate_img = download_image(canonical["image_url"])
+        if candidate_img is not None:
+            sim = image_similarity(original, candidate_img)
+            out["image_similarity"] = sim
+            if sim >= sim_threshold:
+                out["clean_image"] = candidate_img
+                out["image_source"] = f"Open Food Facts match: {canonical['product_name']}"
+                return out
+            else:
+                out["image_swap_rejected"] = True
+
+    # Fallback: no catalogue match, download failed, or similarity too low
+    out["clean_image"] = clean_product_image(original)
+    out["image_source"] = "background-removed original (no catalogue match)"
+    return out
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Pipeline helpers
 # ─────────────────────────────────────────────────────────────────────────────
 def _save_image(pil_img: Image.Image) -> Path:
@@ -211,7 +372,7 @@ def _save_image(pil_img: Image.Image) -> Path:
 
 def run_pipeline(pil_img: Image.Image) -> dict:
     """
-    Run recognition → retrieval → generation.
+    Run recognition → retrieval → generation → (optional) image upgrade.
 
     Tries the full pipeline.run() first. Falls back to calling
     providers directly so the demo works even if some pipeline
@@ -225,16 +386,26 @@ def run_pipeline(pil_img: Image.Image) -> dict:
     # ── Try full pipeline ──────────────────────────────────────────────────
     try:
         from snap_to_sell.pipeline import run as pipeline_run
-        from dataclasses import asdict
         validated = pipeline_run(img_path)
-        return _from_validated(validated)
+        result = _from_validated(validated)
     except ImportError:
-        pass  # pipeline not fully set up yet — use providers directly
+        result = None  # pipeline not fully set up yet — use providers directly
     except Exception as e:
         st.warning(f"Full pipeline error ({e}) — falling back to direct provider calls.")
+        result = None
 
-    # ── Fallback: call providers directly ──────────────────────────────────
-    return _run_providers(img_path)
+    if result is None:
+        result = _run_providers(img_path)
+
+    # ── Image upgrade step (NEW) — runs regardless of pipeline vs fallback ──
+    if enable_image_upgrade and result.get("identity"):
+        try:
+            upgrade = upgrade_image(pil_img, result["identity"], similarity_threshold)
+            result.update(upgrade)
+        except Exception as e:
+            result["image_upgrade_warning"] = str(e)
+
+    return result
 
 
 def _run_providers(img_path: str) -> dict:
@@ -427,10 +598,12 @@ with col_out:
                 st.stop()
         elapsed = time.time() - t0
 
-        # Cache result so it stays visible on reruns
+        # Cache result (and original image) so it stays visible on reruns
         st.session_state["last_result"] = result
+        st.session_state["last_image"]  = image
 
     result = st.session_state.get("last_result")
+    orig_image = st.session_state.get("last_image")
 
     if result:
         identity  = result.get("identity", {})
@@ -482,6 +655,30 @@ with col_out:
 </div>
 """, unsafe_allow_html=True)
 
+        # ── Cleaned / canonical image section (NEW) ────────────────────────────
+        if result.get("clean_image") is not None and orig_image is not None:
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.markdown('<div class="sec-label">🖼️ Product image</div>', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                st.image(orig_image, caption="Original", width="stretch")
+            with c2:
+                st.image(result["clean_image"], caption=result.get("image_source", "Cleaned"),
+                         width="stretch")
+
+            sim = result.get("image_similarity")
+            if result.get("image_swap_rejected"):
+                st.warning(
+                    f"Catalogue image found but similarity too low "
+                    f"({sim:.0%} < {similarity_threshold:.0%} threshold) — "
+                    f"kept your original (background-removed) photo instead."
+                )
+            elif sim is not None and "Open Food Facts" in result.get("image_source", ""):
+                st.caption(f"Same-SKU similarity check passed: {sim:.0%}")
+
+        if result.get("image_upgrade_warning"):
+            st.warning(f"Image upgrade: {result['image_upgrade_warning']}")
+
         # ── Editable copy section ──────────────────────────────────────────────
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown('<div class="sec-label">✏️ Edit & copy</div>', unsafe_allow_html=True)
@@ -508,7 +705,8 @@ with col_out:
         st.caption(
             f"Mode: {mode} · Provider: {provider} · "
             f"Retrieval: {retrieve_backend} · "
-            f"Model: {llm_model}"
+            f"Model: {llm_model} · "
+            f"Image upgrade: {'on' if enable_image_upgrade else 'off'}"
         )
 
     else:
@@ -520,6 +718,7 @@ with col_out:
   The AI will return:<br>
   <b>·</b> Brand, product, size, category<br>
   <b>·</b> Current retail price range (web search)<br>
-  <b>·</b> Ready-to-post title and description
+  <b>·</b> Ready-to-post title and description<br>
+  <b>·</b> A cleaned / catalogue-matched product photo, when a confident match exists
 </div>
 """, unsafe_allow_html=True)
