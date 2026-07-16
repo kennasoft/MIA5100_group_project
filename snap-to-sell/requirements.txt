@@ -5,7 +5,6 @@ opencv-python-headless
 imagehash          # perceptual-hash image match fallback (CPU, no torch)
 pandas             # evaluation harness
 numpy
-
 # Optional
 # scikit-learn     # extra metrics
 # matplotlib       # result figures
