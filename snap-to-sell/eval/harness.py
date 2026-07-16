@@ -92,22 +92,49 @@ def run_baseline(image_path):
 
 # --------------------------- scoring (shared) ---------------------------
 
-def evaluate(runner, out_path, label):
-    """Run `runner` over the test set, write per-item CSV, return a metrics dict."""
+def evaluate(runner, out_path, label, testset_dir=TESTSET, make_report=False, include_unlabeled=False):
+    """Run `runner` over the test set, write per-item CSV, return a metrics dict.
+
+    testset_dir: folder holding the images and a labels.csv (default data/testset). Image paths
+    in labels.csv are resolved relative to this folder, so a labels.csv living in the folder can
+    reference its images by bare filename.
+    make_report: also write an output/pipeline-result-<ts>.html visual report for this run."""
     import pandas as pd
 
-    if not os.path.exists(LABELS):
-        print("No labels.csv. WS2: populate data/testset/labels.csv.")
+    labels_path = os.path.join(testset_dir, "labels.csv")
+    if not os.path.exists(labels_path):
+        print(f"No labels.csv in {testset_dir}. WS2: populate it.")
         return None
 
-    df = pd.read_csv(LABELS)
+    rep = None
+    if make_report:
+        from src.snap_to_sell.report import RunReport
+        rep = RunReport(title=f"Snap-to-Sell — {label} run")
+    _gt_keys = ("brand", "product", "variant", "size", "category", "gt_price", "age_restricted")
+
+    df = pd.read_csv(labels_path)
+    # Warn about image files in the folder that have no label row (they are silently skipped,
+    # because the harness iterates labels.csv, not the directory).
+    import glob as _glob
+    _labeled = set(df["image"].astype(str))
+    _present = {os.path.basename(p) for ext in ("*.jpg", "*.jpeg", "*.png", "*.webp")
+                for p in _glob.glob(os.path.join(testset_dir, ext))}
+    _unlabeled = sorted(_present - _labeled)
+    if _unlabeled:
+        verb = "processed WITHOUT accuracy" if include_unlabeled else "SKIPPED"
+        shown = ", ".join(_unlabeled[:8]) + (" …" if len(_unlabeled) > 8 else "")
+        print(f"[harness] NOTE: {len(_unlabeled)} image(s) in {testset_dir} have no row in "
+              f"labels.csv and will be {verb}: {shown}", file=sys.stderr)
+
     rows = []
     for _, r in df.iterrows():
-        img = os.path.join(TESTSET, str(r["image"]))
+        img = os.path.join(testset_dir, str(r["image"]))
         if not os.path.exists(img):
             print(f"skip (missing image): {r['image']}")
             continue
         v = runner(img)
+        if rep is not None:
+            rep.add(img, v, {k: r.get(k) for k in _gt_keys})
         ident = v.listing.identity
         pred_price = v.listing.price.point
         gt_price = float(r["gt_price"]) if str(r.get("gt_price", "")).strip() else None
@@ -127,6 +154,15 @@ def evaluate(runner, out_path, label):
             "compliance": v.compliance_status,
         })
 
+    # Optionally also run images that have no label row — they get a report card but no accuracy.
+    if include_unlabeled and rep is not None:
+        for name in _unlabeled:
+            img = os.path.join(testset_dir, name)
+            try:
+                rep.add(img, runner(img), None)
+            except Exception as e:  # noqa: BLE001
+                print(f"[harness] unlabeled {name} failed: {type(e).__name__}", file=sys.stderr)
+
     if not rows:
         print("No test items evaluated (no images present).")
         return None
@@ -139,6 +175,9 @@ def evaluate(runner, out_path, label):
         "n": len(res),
         "id_acc": res["id_correct"].mean(),
         "cat_acc": res["cat_correct"].mean(),
+        # Headline is the MEDIAN abs. % error (robust to a few catastrophic outliers, e.g. a
+        # multipack matched to a single unit); mean is kept alongside for transparency.
+        "price_medape": price.median() if len(price) else float("nan"),
         "price_mape": price.mean() if len(price) else float("nan"),
         "n_priced": len(price),
         "age_recall": age["pred_age"].mean() if len(age) else float("nan"),
@@ -147,6 +186,13 @@ def evaluate(runner, out_path, label):
     }
     res.to_csv(out_path, index=False)
     metrics["_csv"] = os.path.relpath(out_path)
+    if rep is not None and rep.items:
+        try:
+            html_path = rep.write_html("output")
+            print(f"[harness] visual report -> {html_path}")
+            metrics["_html"] = html_path
+        except Exception as e:  # noqa: BLE001 — a report failure must not fail the eval
+            print(f"[harness] report generation failed: {type(e).__name__}: {e}", file=sys.stderr)
     return metrics
 
 
@@ -154,7 +200,7 @@ def _print_single(m):
     print(f"\n=== {m['label']} evaluation (n={m['n']}) ===")
     print(f"Identification accuracy : {m['id_acc']:.1%}")
     print(f"Category accuracy       : {m['cat_acc']:.1%}")
-    print(f"Price median abs error  : {m['price_mape']:.1f}%  (on {m['n_priced']} priced items)")
+    print(f"Price median abs error  : {m['price_medape']:.1f}%  (mean {m['price_mape']:.1f}%, on {m['n_priced']} priced items)")
     print(f"Age-restriction recall  : {m['age_recall']:.1%}  (on {m['n_age']} restricted items)")
     print(f"Image-swap rate         : {m['swap_rate']:.1%}")
     print(f"per-item results written to {m['_csv']}")
@@ -173,7 +219,8 @@ def _print_both(base, full):
     rows = [
         ("Top-1 identification accuracy", _fmt_pct(base["id_acc"]), _fmt_pct(full["id_acc"])),
         ("Category accuracy",             _fmt_pct(base["cat_acc"]), _fmt_pct(full["cat_acc"])),
-        ("Price median abs. % error",     _fmt_mape(base["price_mape"]), _fmt_mape(full["price_mape"])),
+        ("Price median abs. % error",     _fmt_mape(base["price_medape"]), _fmt_mape(full["price_medape"])),
+        ("Price mean abs. % error",       _fmt_mape(base["price_mape"]), _fmt_mape(full["price_mape"])),
         ("Age-restriction recall",        _fmt_pct(base["age_recall"]), _fmt_pct(full["age_recall"])),
         ("Image-swap rate",               _fmt_pct(base["swap_rate"]), _fmt_pct(full["swap_rate"])),
     ]
@@ -188,8 +235,19 @@ def _print_both(base, full):
           "per-image correctness to report true false swaps. Baseline never swaps or flags by design.")
 
 
+def _arg_value(argv, name):
+    """Return the value after `--name` (supports `--name VALUE` and `--name=VALUE`)."""
+    for i, a in enumerate(argv):
+        if a == name and i + 1 < len(argv):
+            return argv[i + 1]
+        if a.startswith(name + "="):
+            return a.split("=", 1)[1]
+    return None
+
+
 def main():
-    args = set(sys.argv[1:])
+    argv = sys.argv[1:]
+    args = set(argv)
     try:
         from src.snap_to_sell import config
         active = config.active_provider() or "offline (no API key)"
@@ -197,17 +255,33 @@ def main():
         active = "unknown"
     print(f"[harness] provider: {active}", file=sys.stderr)
 
+    # --testset DIR : evaluate a different image folder (its own labels.csv + bare-filename images).
+    testset = _arg_value(argv, "--testset")
+    if testset:
+        testset = testset if os.path.isabs(testset) else os.path.join(os.getcwd(), testset)
+        out_full = os.path.join(testset, "eval_results.csv")
+        out_base = os.path.join(testset, "eval_results_baseline.csv")
+        print(f"[harness] testset: {testset}", file=sys.stderr)
+    else:
+        testset, out_full, out_base = TESTSET, OUT_FULL, OUT_BASE
+
+    report = "--no-report" not in args   # HTML run report on by default (skip with --no-report)
+    incl = "--include-unlabeled" in args  # also process folder images that have no label row
+
     if "--both" in args:
-        base = evaluate(run_baseline, OUT_BASE, "Baseline")
-        full = evaluate(run_full, OUT_FULL, "Snap-to-Sell")
+        base = evaluate(run_baseline, out_base, "Baseline", testset)
+        full = evaluate(run_full, out_full, "Snap-to-Sell", testset,
+                        make_report=report, include_unlabeled=incl)
         if base and full:
             _print_both(base, full)
     elif "--baseline" in args:
-        m = evaluate(run_baseline, OUT_BASE, "Baseline")
+        m = evaluate(run_baseline, out_base, "Baseline", testset,
+                     make_report=report, include_unlabeled=incl)
         if m:
             _print_single(m)
     else:
-        m = evaluate(run_full, OUT_FULL, "Snap-to-Sell")
+        m = evaluate(run_full, out_full, "Snap-to-Sell", testset,
+                     make_report=report, include_unlabeled=incl)
         if m:
             _print_single(m)
 

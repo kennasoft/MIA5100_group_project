@@ -16,7 +16,7 @@ import sys
 
 import requests
 
-from ..interfaces import RetrievedBundle, PriceInfo, CandidateImage
+from ..interfaces import RetrievedBundle, PriceInfo, CandidateImage, RankedCandidate
 from .. import config, providers, trace
 
 _FIELDS = "code,product_name,generic_name,brands,categories_tags,image_front_url,image_url,quantity"
@@ -234,6 +234,64 @@ def _search_shopping(query):
     return r.json().get("shopping", [])
 
 
+# Multipack / case detection. Google Shopping (Amazon-heavy) tends to return CASES for cheap
+# single-unit corner-store goods, so the listing price is a pack price, not a unit price. We
+# detect an explicit pack count to (a) down-rank multipacks when the queried item is a single
+# unit and (b) normalise an adopted pack price to per-unit. Bare "N bags/count" is intentionally
+# NOT treated as a multipack — it is ambiguous (e.g. "20 tea bags", "150-count" are single units).
+_PACK_PATTERNS = (
+    r"pack of (\d{1,3})", r"case of (\d{1,3})", r"box of (\d{1,3})", r"carton of (\d{1,3})",
+    r"lot of (\d{1,3})", r"set of (\d{1,3})", r"bundle of (\d{1,3})",
+    r"(\d{1,3})\s*[-\s]?pack\b", r"(\d{1,3})\s*[-\s]?pk\b", r"(\d{1,3})\s*count\s+pack",
+    r"(\d{1,3})\s*[×x]\s*\d",                       # "12 x 355 ml", "24×330"
+    r"(\d{1,3})\s*per\s*(?:case|pack|box|carton|pkg)",   # "12 per case"
+    # French (Canadian bilingual listings)
+    r"lot de (\d{1,3})", r"paquet de (\d{1,3})", r"pack de (\d{1,3})",
+    r"bo[iî]te de (\d{1,3})", r"caisse de (\d{1,3})", r"ensemble de (\d{1,3})",
+    r"(\d{1,3})\s*(?:unit[eé]s|canettes|bouteilles|sachets)",  # "8 canettes"
+)
+_MULTI_WORDS = ("multipack", "multi-pack", "multi pack", "value pack", "family pack",
+                "variety pack", "bulk", "paquet multiple", "caisse")
+
+# Price-outlier guard: a candidate priced far above the median of its peer candidates is almost
+# always a wrong-product or bulk-case match (e.g. a kayak returned for a snack query). Reject it
+# when cheaper viable candidates exist.
+_PRICE_OUTLIER_FACTOR = 8.0
+
+
+def _pack_info(text):
+    """Return (count, is_multipack) for a title. count>1 only for an explicit numeric pack;
+    is_multipack is also True for count-less multipack words (then count stays 1)."""
+    t = (text or "").lower()
+    best = 1
+    for pat in _PACK_PATTERNS:
+        for m in re.finditer(pat, t):
+            try:
+                n = int(m.group(1))
+            except (IndexError, ValueError):
+                continue
+            if 1 < n <= 500:
+                best = max(best, n)
+    if best > 1:
+        return best, True
+    return 1, any(w in t for w in _MULTI_WORDS)
+
+
+def _query_is_multipack(identity) -> bool:
+    """True when the recognised item is ITSELF a multipack (e.g. size '8 x 200 mL', '24 pack'),
+    so matching a multipack listing is correct and must not be penalised or unit-normalised."""
+    _, multi = _pack_info(f"{identity.size} {identity.variant} {identity.product}")
+    return multi
+
+
+def _brand_confirmed(identity, title) -> bool:
+    """True only if the recognised brand actually appears in the chosen listing title. Unbranded
+    items (no recognised brand) return False — we cannot confirm the match, so we decline to
+    trust its price."""
+    idb = _tokens(identity.brand)
+    return bool(idb) and bool(idb & _tokens(title))
+
+
 def _score_shopping(identity, item) -> float:
     id_all = _tokens(f"{identity.brand} {identity.product} {identity.variant} {identity.size}")
     id_brand = _tokens(identity.brand)
@@ -247,6 +305,11 @@ def _score_shopping(identity, item) -> float:
         score += 2.0
     if item.get("imageUrl"):
         score += 0.5
+    # pack mismatch: single-unit query but a multipack/case listing -> down-rank strongly.
+    if not _query_is_multipack(identity):
+        _, multi = _pack_info(item.get("title"))
+        if multi:
+            score -= 2.5
     # retailer preference: reputable retailers up, resale/marketplace sites down
     src = _as_text(item.get("source")).lower()
     if src and any(p in src for p in config.PREFERRED_SOURCES):
@@ -262,23 +325,72 @@ def _score_shopping(identity, item) -> float:
     return score
 
 
+def _ranked_candidates(identity, scored, best_item, top=3):
+    """Top-N ranked shopping candidates as RankedCandidate objects (for the run report)."""
+    q_multi = _query_is_multipack(identity)
+    out = []
+    for s, it in scored[:top]:
+        pv, cur = _parse_price(it.get("price"))
+        n, multi = _pack_info(it.get("title"))
+        notes = []
+        if n > 1 and multi and not q_multi:
+            notes.append(f"{n}-pack (price shown ÷{n} for unit)")
+        elif multi and not q_multi:
+            notes.append("multipack")
+        src = _as_text(it.get("source")).lower()
+        if src and any(p in src for p in config.PREFERRED_SOURCES):
+            notes.append("reputable retailer")
+        elif src and any(d in src for d in config.DEMOTED_SOURCES):
+            notes.append("marketplace/resale")
+        if cur and cur not in config.PREFERRED_CURRENCIES:
+            notes.append(f"{cur} (foreign)")
+        out.append(RankedCandidate(
+            title=_as_text(it.get("title")), price=pv, currency=cur or config.CURRENCY,
+            source=_as_text(it.get("source")), image_url=_as_text(it.get("imageUrl")),
+            category=identity.category, score=round(s, 2), detail=", ".join(notes),
+            chosen=(it is best_item)))
+    return out
+
+
+def _price_outlier_penalty(scored):
+    """Subtract a heavy penalty from candidates whose price is a gross outlier (> factor x the
+    median candidate price) so a wrong-product / bulk-case listing can't win when cheaper viable
+    candidates exist. Returns a re-sorted list."""
+    import statistics
+    prices = [p for p in (_parse_price(it.get("price"))[0] for _, it in scored) if p]
+    if len(prices) < 3:
+        return scored
+    med = statistics.median(prices)
+    if med <= 0:
+        return scored
+    adjusted = []
+    for s, it in scored:
+        pv, _ = _parse_price(it.get("price"))
+        if pv and pv > _PRICE_OUTLIER_FACTOR * med:
+            s -= 5.0
+        adjusted.append((s, it))
+    return sorted(adjusted, key=lambda x: x[0], reverse=True)
+
+
 def _pick_shopping(identity, items):
     if not items:
-        return None, False
+        return None, False, []
     scored = sorted(((_score_shopping(identity, it), it) for it in items),
                     key=lambda x: x[0], reverse=True)
+    scored = _price_outlier_penalty(scored)
     trace.log("RETRIEVE", "shopping candidate ranking (score reflects brand/size/retailer/currency)",
               [{"score": round(s, 2), "title": _as_text(it.get("title")),
                 "source": _as_text(it.get("source")), "price": _as_text(it.get("price"))}
                for s, it in scored])
     best_score, best = scored[0]
+    ranked = _ranked_candidates(identity, scored, best)
     ambiguous = best_score < 2.0
     if len(scored) > 1 and (best_score - scored[1][0]) < 1.0:
         ambiguous = True
-    return best, ambiguous
+    return best, ambiguous, ranked
 
 
-def _bundle_from_shopping(item, ambiguous=False) -> RetrievedBundle:
+def _bundle_from_shopping(item, ambiguous=False, identity=None) -> RetrievedBundle:
     title = _as_text(item.get("title"))
     pv, cur = _parse_price(item.get("price"))
     if pv is None and item.get("priceValue") is not None:
@@ -288,8 +400,16 @@ def _bundle_from_shopping(item, ambiguous=False) -> RetrievedBundle:
             pv = None
     src = _as_text(item.get("source"))
     if pv is not None:
-        price = PriceInfo(currency=cur or config.CURRENCY, point=round(float(pv), 2),
-                          basis="Google Shopping" + (f" ({src})" if src else ""))
+        basis = "Google Shopping" + (f" ({src})" if src else "")
+        # Normalise a pack/case price to per-unit when the queried item is a single unit and the
+        # listing has an explicit pack count (e.g. "$28.88 for 30 Bags" -> $0.96 each).
+        n, multi = _pack_info(title)
+        if n > 1 and multi and not (identity is not None and _query_is_multipack(identity)):
+            pv = float(pv) / n
+            basis += f"; per-unit from {n}-pack"
+            trace.log("RETRIEVE", f"pack normalise: {n}-pack -> unit price {round(pv, 2)}",
+                      {"title": title})
+        price = PriceInfo(currency=cur or config.CURRENCY, point=round(float(pv), 2), basis=basis)
     else:
         price = PriceInfo(currency=config.CURRENCY, basis="no price found")
     images = []
@@ -526,11 +646,24 @@ def retrieve(identity) -> RetrievedBundle:
             except Exception as e:
                 print(f"[retrieve] shopping search failed ({shop_q!r}): {e}", file=sys.stderr)
                 items = []
-            best, ambiguous = _pick_shopping(identity, items)
+            best, ambiguous, ranked = _pick_shopping(identity, items)
             if best:
-                bundle = _bundle_from_shopping(best, ambiguous)
+                bundle = _bundle_from_shopping(best, ambiguous, identity)
+                bundle.candidates = ranked
                 if exact:
                     bundle.canonical_name = exact   # trust the barcode-derived exact name
+                # Confidence gate: if the picked listing's brand can't be confirmed against the
+                # recognised brand, decline to price it (route to review) rather than publish a
+                # wrong-product price. NOTE: we deliberately do NOT gate on bundle.ambiguous — that
+                # flag fires on almost every shopping result (close scores) and would suppress most
+                # items. A barcode-confirmed exact name overrides the gate.
+                if (not exact and config.PRICE_CONFIDENCE_GATE
+                        and not _brand_confirmed(identity, _as_text(best.get("title")))):
+                    trace.log("RETRIEVE", "confidence gate: brand not confirmed -> declining to price, route to review",
+                              {"identity_brand": identity.brand, "picked_title": _as_text(best.get("title"))})
+                    bundle.price = PriceInfo(currency=bundle.price.currency,
+                                             basis="declined: brand not confirmed in listing — route to review")
+                    bundle.ambiguous = True
                 return bundle
         if bc_prod:                                  # shopping missed, but the barcode record stands
             return _bundle_from_barcode(bc_prod, bc_source, code)

@@ -43,14 +43,39 @@ def _extract_json(text: str) -> dict:
     return json.loads(t[start:end + 1])
 
 
+# Browser-like UA for fetching candidate product images (shopping thumbnails 403 the OFF UA).
+_IMG_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+           "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+
+
+def _b64_ref(ref: str):
+    """(mime, b64) for an image given a local path or an http(s) URL."""
+    if isinstance(ref, str) and ref.startswith("http"):
+        r = requests.get(ref, timeout=config.HTTP_TIMEOUT, headers={"User-Agent": _IMG_UA})
+        r.raise_for_status()
+        mime = (r.headers.get("Content-Type") or "image/jpeg").split(";")[0].strip()
+        if not mime.startswith("image/"):
+            mime = "image/jpeg"
+        return mime, base64.b64encode(r.content).decode("ascii")
+    return _b64_image(ref)
+
+
+def _prep_images(images):
+    """Normalise an ``images`` argument into a list of (mime, b64). Each item may be a path/URL
+    string or an already-prepared (mime, b64) tuple."""
+    out = []
+    for it in images or []:
+        out.append(it if isinstance(it, tuple) else _b64_ref(it))
+    return out
+
+
 # --------------------------- Gemini ---------------------------
 
-def _gemini(prompt: str, image_path: str | None) -> dict:
+def _gemini(prompt: str, images: list) -> dict:
     url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
            f"{config.GEMINI_MODEL}:generateContent?key={config.GEMINI_API_KEY}")
     parts = [{"text": prompt}]
-    if image_path:
-        mime, b64 = _b64_image(image_path)
+    for mime, b64 in images:
         parts.append({"inline_data": {"mime_type": mime, "data": b64}})
     body = {
         "contents": [{"parts": parts}],
@@ -70,10 +95,9 @@ def _gemini(prompt: str, image_path: str | None) -> dict:
 
 # --------------------------- OpenAI ---------------------------
 
-def _openai(prompt: str, image_path: str | None) -> dict:
+def _openai(prompt: str, images: list) -> dict:
     content = [{"type": "text", "text": prompt}]
-    if image_path:
-        mime, b64 = _b64_image(image_path)
+    for mime, b64 in images:
         content.append({"type": "image_url",
                         "image_url": {"url": f"data:{mime};base64,{b64}"}})
     body = {
@@ -96,10 +120,9 @@ def _openai(prompt: str, image_path: str | None) -> dict:
 
 # --------------------------- Anthropic (Claude) ---------------------------
 
-def _anthropic(prompt: str, image_path: str | None) -> dict:
+def _anthropic(prompt: str, images: list) -> dict:
     content = [{"type": "text", "text": prompt}]
-    if image_path:
-        mime, b64 = _b64_image(image_path)
+    for mime, b64 in images:
         content.append({"type": "image",
                         "source": {"type": "base64", "media_type": mime, "data": b64}})
     body = {
@@ -122,16 +145,19 @@ def _anthropic(prompt: str, image_path: str | None) -> dict:
     return _extract_json(r.json()["content"][0]["text"])
 
 
-def _call(prompt: str, image_path: str | None, label: str = "") -> dict:
+def _call(prompt: str, image_path: str | None = None, label: str = "", images=None) -> dict:
+    """Dispatch a text (+ optional image) prompt to the active provider. Pass a single
+    ``image_path`` for one image, or ``images`` (list of paths/URLs/(mime,b64)) for several."""
     prov = config.active_provider()
+    imgs = _prep_images(images) if images is not None else ([_b64_ref(image_path)] if image_path else [])
     trace.log("LLM", f"{label or 'call'} -> {prov or 'offline'}",
-              {"prompt": prompt[:600] + ("…" if len(prompt) > 600 else ""), "image": image_path})
+              {"prompt": prompt[:600] + ("…" if len(prompt) > 600 else ""), "images": len(imgs)})
     if prov == "anthropic":
-        out = _anthropic(prompt, image_path)
+        out = _anthropic(prompt, imgs)
     elif prov == "gemini":
-        out = _gemini(prompt, image_path)
+        out = _gemini(prompt, imgs)
     elif prov == "openai":
-        out = _openai(prompt, image_path)
+        out = _openai(prompt, imgs)
     else:
         raise NoProviderError("no hosted provider configured")
     trace.log("LLM", f"{label or 'call'} response", out)
@@ -199,3 +225,35 @@ def extract_product_name(barcode: str, results: list) -> dict:
         "corresponds to this barcode, use an empty string."
     )
     return _call(prompt, None, "barcode name")
+
+
+_VERIFY_PROMPT = (
+    "You are verifying a product image match for an online listing. "
+    "IMAGE A is a shop owner's own photo of a product. IMAGE B is a candidate catalogue image "
+    "that may be swapped in to replace A. Decide whether B shows the SAME product as A — the "
+    "same brand, the same variant/flavour/scent, AND the same size/pack count. Be strict: a "
+    "different size, flavour, or a look-alike product from the same brand is NOT a match "
+    "(showing a wrong image misleads buyers). Judge the product identity, not photo quality or "
+    "background. Return ONLY a JSON object with keys: same_product (true/false), confidence "
+    "(0..1, how sure you are), reason (one short sentence)."
+)
+
+
+def verify_same_product(photo_ref: str, candidate_ref: str, identity: dict | None = None) -> dict:
+    """LLM same-SKU judge: does the candidate catalogue image show the SAME product as the photo?
+    Sends both images to the vision model. Returns a normalised
+    {"same_product": bool, "confidence": float, "reason": str}. Raises NoProviderError if offline;
+    the candidate fetch may raise (e.g. a thumbnail that won't download) — callers should skip it."""
+    prompt = _VERIFY_PROMPT
+    if identity:
+        prompt += f"\n\nFor context, IMAGE A was recognised as: {json.dumps(identity)}"
+    out = _call(prompt, images=[photo_ref, candidate_ref], label="verify same-SKU")
+    try:
+        conf = float(out.get("confidence", 0) or 0)
+    except (TypeError, ValueError):
+        conf = 0.0
+    return {
+        "same_product": bool(out.get("same_product")),
+        "confidence": max(0.0, min(1.0, conf)),
+        "reason": str(out.get("reason", ""))[:300],
+    }

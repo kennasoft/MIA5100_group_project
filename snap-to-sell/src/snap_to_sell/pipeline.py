@@ -48,9 +48,10 @@ def _run(image_path: str):
     bundle = retrieve(identity)
     trace.log("RETRIEVE", "final bundle", bundle)
     draft = generate(identity, bundle)
+    draft.candidates = bundle.candidates          # retain ranked candidates for the run report
     trace.log("GENERATE", "draft listing",
               {"title": draft.title, "description": draft.description, "price": asdict(draft.price)})
-    img_ref, swapped, enhanced = select_image(clean, bundle)
+    img_ref, swapped, enhanced = select_image(clean, bundle, identity)
     draft.image_url = img_ref
     draft.flags.image_swapped = swapped
     draft.flags.image_enhanced = enhanced
