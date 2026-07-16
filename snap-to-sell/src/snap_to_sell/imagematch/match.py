@@ -11,7 +11,7 @@ import os
 
 import requests
 
-from .. import config
+from .. import config, trace
 from ..config import IMAGE_MATCH_THRESHOLD, HTTP_TIMEOUT, USER_AGENT
 
 _clip = None  # lazy cache: (model, preprocess, tokenizer) or False
@@ -151,18 +151,27 @@ def select_image(original_path, bundle):
         if sc >= best:
             best_ref, best = cand.url, sc
     candidate = best_ref if (best_ref and (config.ALWAYS_SWAP or best >= IMAGE_MATCH_THRESHOLD)) else None
+    trace.log("IMAGE", f"mode={mode}; best same-SKU match={round(best, 3)}; "
+              f"candidate={'adoptable' if candidate else 'none / below match gate'}",
+              [{"source": c.source, "url": c.url, "match_score": round(c.match_score, 3)}
+               for c in bundle.images] or None)
 
     if mode == "off":
         return original_path, False, False
 
     if mode == "swap":
         if candidate and (config.ALWAYS_SWAP or _is_better(candidate, original_path)):
+            trace.log("IMAGE", "swap mode: adopted external catalogue image")
             return candidate, True, False
+        trace.log("IMAGE", "swap mode: kept original photo (no better candidate)")
         return original_path, False, False
 
     # default: "enhance"
     cleaned = enhance_image(original_path)
+    trace.log("IMAGE", "enhance mode: cleaned own photo = "
+              f"{cleaned or 'unavailable (rembg not installed) -> kept normalized photo'}")
     base = cleaned or original_path
     if candidate and (config.ALWAYS_SWAP or _is_better(candidate, base)):
+        trace.log("IMAGE", "enhance mode: external image beat own photo -> swapped")
         return candidate, True, bool(cleaned)
     return base, False, bool(cleaned)

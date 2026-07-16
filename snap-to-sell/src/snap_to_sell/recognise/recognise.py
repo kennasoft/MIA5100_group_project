@@ -10,7 +10,7 @@ import os
 import sys
 
 from ..interfaces import ProductIdentity
-from .. import providers, config
+from .. import providers, config, trace
 
 _FIELDS = {"brand", "product", "variant", "size", "category",
            "ocr_text", "barcode", "confidence", "search_query", "catalogue_image_url"}
@@ -40,12 +40,14 @@ def recognise(image_path: str) -> ProductIdentity:
     try:
         return _from_dict(providers.vlm_identify(image_path))
     except providers.NoProviderError:
-        pass
+        trace.log("RECOGNISE", "no hosted provider configured; trying offline sidecar")
     except Exception as e:  # provider/network error -> degrade, don't crash
+        trace.log("RECOGNISE", f"provider error, falling back: {e}")
         print(f"[recognise] provider failed, falling back: {e}", file=sys.stderr)
 
     # Provider-only mode: skip the sidecar so a wrong result proves inference failed.
     if config.STRICT_PROVIDER:
+        trace.log("RECOGNISE", "strict mode (SNAP_STRICT_PROVIDER) -> 'unknown', no sidecar")
         return ProductIdentity(product="unknown", category="other", confidence=0.0)
 
     # 2) offline sidecar label (demo / eval without a key)
@@ -55,7 +57,9 @@ def recognise(image_path: str) -> ProductIdentity:
             ident = _from_dict(json.load(f))
         if not ident.confidence:
             ident.confidence = 0.5
+        trace.log("RECOGNISE", f"loaded offline sidecar {side}", ident)
         return ident
 
     # 3) last resort
+    trace.log("RECOGNISE", "no provider and no sidecar -> 'unknown'")
     return ProductIdentity(product="unknown", category="other", confidence=0.0)

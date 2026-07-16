@@ -2,7 +2,8 @@
 
 Flow:
   1. Barcode-first (if the model read a barcode): authoritative record from Open Food Facts,
-     Open Products Facts, then EcomSource (optional keys) -> an EXACT product name.
+     Open Products Facts, then SNAP_BARCODE_SOURCE (default "websearch": a Serper web search on
+     barcodelookup.com + LLM name extraction — cheap; or "ecomsource") -> an EXACT product name.
   2. Shopping backend (SNAP_RETRIEVE_BACKEND=shopping): one Serper.dev Google Shopping search
      using the exact name (or full label) -> clean retailer image + real price. Results are
      re-ranked by brand/size match, reputable-retailer preference, and home-currency preference.
@@ -16,7 +17,7 @@ import sys
 import requests
 
 from ..interfaces import RetrievedBundle, PriceInfo, CandidateImage
-from .. import config
+from .. import config, providers, trace
 
 _FIELDS = "code,product_name,generic_name,brands,categories_tags,image_front_url,image_url,quantity"
 SEARCH_PAGE_SIZE = 5  # fetch N candidates, then re-rank against the recognised identity
@@ -147,6 +148,10 @@ def _pick(identity, hits):
     if not hits:
         return None, False
     scored = sorted(((_score_hit(identity, h), h) for h in hits), key=lambda x: x[0], reverse=True)
+    trace.log("RETRIEVE", "OFF/OPF candidate ranking",
+              [{"score": round(s, 2), "name": _as_text(h.get("product_name")),
+                "brand": _as_text(h.get("brands")), "qty": _as_text(h.get("quantity"))}
+               for s, h in scored])
     best_score, best = scored[0]
     ambiguous = best_score < 2.0
     if len(scored) > 1 and (best_score - scored[1][0]) < 1.0:
@@ -262,6 +267,10 @@ def _pick_shopping(identity, items):
         return None, False
     scored = sorted(((_score_shopping(identity, it), it) for it in items),
                     key=lambda x: x[0], reverse=True)
+    trace.log("RETRIEVE", "shopping candidate ranking (score reflects brand/size/retailer/currency)",
+              [{"score": round(s, 2), "title": _as_text(it.get("title")),
+                "source": _as_text(it.get("source")), "price": _as_text(it.get("price"))}
+               for s, it in scored])
     best_score, best = scored[0]
     ambiguous = best_score < 2.0
     if len(scored) > 1 and (best_score - scored[1][0]) < 1.0:
@@ -357,18 +366,78 @@ def _ecom_image(prod) -> str:
     return _as_text(prod.get("mainImage") or _ecom_summary(prod).get("mainImage"))
 
 
+# --------------------------- barcode name via Serper web search + LLM ---------------------------
+
+def _serper_web(query, n=5):
+    r = requests.post(config.SERPER_SEARCH_URL,
+                      json={"q": query, "gl": config.SHOPPING_GL, "num": n},
+                      timeout=config.HTTP_TIMEOUT,
+                      headers={"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"})
+    r.raise_for_status()
+    return r.json().get("organic", [])
+
+
+def _heuristic_name(results):
+    """Fallback name parse from a barcodelookup.com result title (used when no LLM key is set)."""
+    for r in results:
+        t = _as_text(r.get("title"))
+        t = re.split(r"[|\-–—]\s*barcode\s*lookup", t, flags=re.I)[0]
+        t = re.sub(r"\b\d{8,14}\b", "", t)
+        t = re.sub(r"\b(UPC|EAN|GTIN|Barcode)\b[:#]?", "", t, flags=re.I)
+        t = re.sub(r"[()\[\]]", " ", t)
+        t = re.sub(r"\s+", " ", t).strip(" -–—|")
+        if t:
+            return t
+    return ""
+
+
+def _barcode_name_via_search(code) -> str:
+    """Serper web search on barcodelookup.com, then LLM-extract the exact product name — one search
+    credit + one small LLM call, cheaper than a dedicated barcode-data API."""
+    try:
+        results = _serper_web(f"{code} site:barcodelookup.com") or _serper_web(f"{code} barcode product")
+    except Exception as e:
+        print(f"[retrieve] barcode web search failed: {e}", file=sys.stderr)
+        return ""
+    if not results:
+        trace.log("RETRIEVE", "barcode web search: no results")
+        return ""
+    slim = [{"title": _as_text(r.get("title")), "snippet": _as_text(r.get("snippet"))}
+            for r in results[:5]]
+    trace.log("RETRIEVE", "barcode web search results (titles)", [s["title"] for s in slim])
+    try:
+        name = _as_text(providers.extract_product_name(code, slim).get("product_name")).strip()
+        trace.log("RETRIEVE", f"LLM-extracted barcode name = {name!r}")
+        return name
+    except providers.NoProviderError:
+        name = _heuristic_name(results)          # no LLM key -> heuristic title parse
+        trace.log("RETRIEVE", f"heuristic barcode name = {name!r}")
+        return name
+    except Exception as e:
+        print(f"[retrieve] barcode name extraction failed: {e}", file=sys.stderr)
+        return _heuristic_name(results)
+
+
 def _barcode_record(code):
-    """Authoritative product record by barcode: Open Food Facts, then Open Products Facts, then
-    EcomSource (if keys are set). Returns (record, source) or (None, None)."""
+    """Authoritative product record by barcode: Open Food Facts, then Open Products Facts, then the
+    configured SNAP_BARCODE_SOURCE (websearch name-scrape, or EcomSource). Returns (record, source).
+    The websearch source yields a name-only record {'_name': ...}."""
     for product_url, source in ((config.OFF_PRODUCT_URL, "Open Food Facts"),
                                 (config.OPF_PRODUCT_URL, "Open Products Facts")):
         try:
             prod = _by_barcode(product_url, code)
+            trace.log("RETRIEVE", f"barcode {source}: {'hit' if prod else 'miss'}")
             if prod:
                 return prod, source
         except Exception as e:
+            trace.log("RETRIEVE", f"barcode {source} error: {e}")
             print(f"[retrieve] {source} barcode lookup failed: {e}", file=sys.stderr)
-    if config.ECOMSOURCE_ACCESS_KEY and config.ECOMSOURCE_SECRET_KEY:
+
+    if config.BARCODE_SOURCE == "websearch" and config.SERPER_API_KEY:
+        name = _barcode_name_via_search(code)
+        if name:
+            return {"_name": name}, "Web (barcodelookup.com)"
+    elif config.BARCODE_SOURCE == "ecomsource" and config.ECOMSOURCE_ACCESS_KEY and config.ECOMSOURCE_SECRET_KEY:
         try:
             prod = _ecomsource(code)
             if prod:
@@ -380,6 +449,8 @@ def _barcode_record(code):
 
 def _exact_name(prod, source) -> str:
     """Exact product name from a barcode record (used to drive a precise shopping search)."""
+    if source == "Web (barcodelookup.com)":
+        return _as_text(prod.get("_name")).strip()
     if source == "EcomSource":
         summ = _ecom_summary(prod)
         brand = _as_text(summ.get("brand"))
@@ -423,6 +494,10 @@ def _bundle_from_ecomsource(prod, ambiguous=False) -> RetrievedBundle:
 
 
 def _bundle_from_barcode(prod, source, code) -> RetrievedBundle:
+    if source == "Web (barcodelookup.com)":
+        return RetrievedBundle(canonical_name=_as_text(prod.get("_name")),
+                               price=PriceInfo(currency=config.CURRENCY, basis="name from web search"),
+                               images=[])
     if source == "EcomSource":
         return _bundle_from_ecomsource(prod)
     return _bundle_from_record(prod, code, source)
@@ -430,14 +505,21 @@ def _bundle_from_barcode(prod, source, code) -> RetrievedBundle:
 
 def retrieve(identity) -> RetrievedBundle:
     code = identity.barcode
+    trace.log("RETRIEVE", "start",
+              {"barcode": code, "backend": config.RETRIEVE_BACKEND,
+               "barcode_source": config.BARCODE_SOURCE, "search_query": identity.search_query})
 
     # 1) Barcode-first: authoritative record (OFF -> OPF -> EcomSource) -> exact product name.
     bc_prod, bc_source = (_barcode_record(code) if code else (None, None))
     exact = _exact_name(bc_prod, bc_source) if bc_prod else ""
+    if exact:
+        trace.log("RETRIEVE", f"barcode record from {bc_source}; exact name = {exact!r}")
 
     # 2) Shopping backend: search by the EXACT barcode name (or the full label) -> better image + price.
     if config.RETRIEVE_BACKEND == "shopping" and config.SERPER_API_KEY:
         shop_q = exact or _full_query(identity)
+        trace.log("RETRIEVE", f"shopping query = {shop_q!r} "
+                  f"(source: {'barcode exact name' if exact else 'full label'})")
         if shop_q:
             try:
                 items = _search_shopping(shop_q)   # single call = one credit

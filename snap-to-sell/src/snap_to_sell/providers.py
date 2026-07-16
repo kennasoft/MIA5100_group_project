@@ -13,7 +13,7 @@ import mimetypes
 
 import requests
 
-from . import config
+from . import config, trace
 
 
 class NoProviderError(RuntimeError):
@@ -122,15 +122,20 @@ def _anthropic(prompt: str, image_path: str | None) -> dict:
     return _extract_json(r.json()["content"][0]["text"])
 
 
-def _call(prompt: str, image_path: str | None) -> dict:
+def _call(prompt: str, image_path: str | None, label: str = "") -> dict:
     prov = config.active_provider()
+    trace.log("LLM", f"{label or 'call'} -> {prov or 'offline'}",
+              {"prompt": prompt[:600] + ("…" if len(prompt) > 600 else ""), "image": image_path})
     if prov == "anthropic":
-        return _anthropic(prompt, image_path)
-    if prov == "gemini":
-        return _gemini(prompt, image_path)
-    if prov == "openai":
-        return _openai(prompt, image_path)
-    raise NoProviderError("no hosted provider configured")
+        out = _anthropic(prompt, image_path)
+    elif prov == "gemini":
+        out = _gemini(prompt, image_path)
+    elif prov == "openai":
+        out = _openai(prompt, image_path)
+    else:
+        raise NoProviderError("no hosted provider configured")
+    trace.log("LLM", f"{label or 'call'} response", out)
+    return out
 
 
 # --------------------------- public API ---------------------------
@@ -141,6 +146,7 @@ _IDENTIFY_PROMPT = (
     "brand, product, variant, size, category, ocr_text, barcode, confidence, search_query. "
     "category is one of: confectionery, snacks, beverage, frozen, tobacco, alcohol, household, other. "
     "size includes units (e.g. '45 g', '500 mL'). barcode is the digits if visible else null. "
+    "be careful not to read the bars in the barcode as a digit (e.g. 1 or 7)."
     "search_query is a SHORT catalogue-search phrase — brand + core product type + size ONLY "
     "(e.g. 'Duracell AA batteries 24'); OMIT marketing words like 'Power Boost', slogans and adjectives. "
     "confidence is 0..1 for how sure you are of the exact product. Use empty string for unknown fields."
@@ -149,7 +155,7 @@ _IDENTIFY_PROMPT = (
 
 def vlm_identify(image_path: str) -> dict:
     """Recognition: photo -> identity dict. Raises NoProviderError if offline."""
-    return _call(_IDENTIFY_PROMPT, image_path)
+    return _call(_IDENTIFY_PROMPT, image_path, "recognise")
 
 
 def draft_listing(identity: dict, retrieved: dict) -> dict:
@@ -163,4 +169,33 @@ def draft_listing(identity: dict, retrieved: dict) -> dict:
         f"IDENTITY: {json.dumps(identity)}\n"
         f"RETRIEVED: {json.dumps(retrieved)}\n"
     )
-    return _call(prompt, None)
+    return _call(prompt, None, "generate listing")
+
+
+def draft_listing_baseline(identity: dict) -> dict:
+    """Naive baseline generation: an UNGROUNDED listing + best-guess price from the identity
+    alone — no retrieval, no comparables, no guardrails. This is deliberately the weak anchor
+    the full pipeline is compared against, so the model is allowed to guess (unlike the grounded
+    draft_listing above). Returns {title, description, price}. Raises NoProviderError if offline."""
+    prompt = (
+        "You are a naive product-listing generator. From the product identity below ALONE, "
+        "write a generic e-commerce listing and your single best guess at a typical retail "
+        "price. You have NO catalogue, NO comparable prices, and NO other facts — just guess. "
+        "Return ONLY a JSON object with keys: title, description, price. "
+        "price is a number in Canadian dollars (CAD), or null if you truly cannot guess.\n\n"
+        f"IDENTITY: {json.dumps(identity)}\n"
+    )
+    return _call(prompt, None, "baseline listing")
+
+
+def extract_product_name(barcode: str, results: list) -> dict:
+    """Extract the exact product name for a barcode from web search results (title + snippet).
+    Returns {"product_name": "..."}. Raises NoProviderError if offline."""
+    prompt = (
+        "You are extracting a product name from web search results for a product barcode. "
+        f"Barcode: {barcode}. Search results (title + snippet):\n{json.dumps(results)[:4000]}\n\n"
+        "Return ONLY a JSON object {\"product_name\": \"...\"} with the exact product name "
+        "(brand + product + size) that corresponds to this barcode. If no result clearly "
+        "corresponds to this barcode, use an empty string."
+    )
+    return _call(prompt, None, "barcode name")
