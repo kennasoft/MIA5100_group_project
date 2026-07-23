@@ -3,9 +3,9 @@
 **Snap-to-Sell (MIA 5100) — paste-ready prose for `final_report.tex`.**
 
 > IEEE-style prose (no bullet lists in the body). Citation keys match
-> `references.bib`. Drop these paragraphs under the report's *Background / Literature
-> Review* and *Comparison of Approaches* headings; convert `\cite{}` calls as-is.
-> Verify the `TODO: verify authors` entries in `references.bib` before submission.
+> `references.bib` (author lists verified against primary sources, July 2026).
+> Drop these paragraphs under the report's *Background / Literature Review* and
+> *Comparison of Approaches* headings; convert `\cite{}` calls as-is.
 
 ---
 
@@ -24,7 +24,7 @@ and learning only the modules that assemble a multimodal in-context reference fr
 similar product; it reports gains of up to 3.3\% Rouge-L and 9.4\% on a diversity metric.
 Crucially, the authors identify the failure mode most relevant to our setting: descriptions
 of same-category products collapse toward generic, inaccurate copy. Applied work on
-LLM-based listing and keyword generation from image-plus-metadata \cite{ijsr2024listing}
+LLM-based listing and keyword generation from image-plus-metadata \cite{kathiriya2023listing}
 corroborates that multimodal prompting improves discoverability, though it treats product
 identity and price as given rather than inferred.
 

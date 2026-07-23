@@ -15,6 +15,12 @@ venv/
 # Runtime pipeline outputs
 snap-to-sell/data/catalogue.csv
 snap-to-sell/data/feedback.csv
+snap-to-sell/data/testset/new
+snap-to-sell/data/uploads
+snap-to-sell/output
+*-log.txt
+*.norm.jpg
+*.clean.png
 
 # LaTeX build intermediates
 *.aux

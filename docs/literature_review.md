@@ -5,10 +5,9 @@
 
 > **Draft for team review.** Citations below use APA style per the
 > [uOttawa citation guidelines](https://www.uottawa.ca/library/writing-citing/citation-styles).
-> A few preprint author lists are marked **[verify authors]** — confirm each against the
-> linked source before the report is finalised (arXiv IDs / DOIs are given so this is quick).
-> The instructions ask for 5–10 landmark papers; ten are profiled here across the four
-> sub-problems, plus an industry-landscape note.
+> Author lists have been verified against the primary sources (arXiv / DOI / publisher
+> records), July 2026. The instructions ask for 5–10 landmark papers; ten are profiled here
+> across the four sub-problems, plus an industry-landscape note.
 
 ---
 
@@ -43,8 +42,9 @@ LREC-COLING 2024. arXiv:2402.13587. https://arxiv.org/abs/2402.13587**
 - *Limitations.* Text only; no pricing, no image sourcing, no factual-grounding guarantee for
   a *selling* (misrepresentation) context.
 
-**[verify authors] (2024). Optimizing e-commerce listing: LLM-based description and keyword
-generation from multimodal data. *International Journal of Science and Research (IJSR), 13*.
+**Kathiriya, S., Mullapudi, M., & Karangara, R. (2023). Optimizing e-commerce listing:
+LLM-based description and keyword generation from multimodal data. *International Journal of
+Science and Research (IJSR), 12*(10), 2123–2130.
 https://www.ijsr.net/getabstract.php?paperid=SR24304113521**
 
 - *Problem / method.* Uses an LLM over image + metadata (size, weight, colour) to auto-generate
@@ -65,8 +65,9 @@ fine-grained image classification.* arXiv:2006.12634. https://arxiv.org/abs/2006
   setting (shelf photos, fine-grained variants).
 - *Limitations.* Classification only — no listing text, no price; catalogue is region-specific.
 
-**[verify authors] (2023). *Multimodal fine-grained grocery product recognition using image and
-OCR text.* https://www.researchgate.net/publication/375000319**
+**Pettersson, T., Riveiro, M., & Löfström, T. (2024). Multimodal fine-grained grocery product
+recognition using image and OCR text. *Machine Vision and Applications, 35*(4), 79.
+https://doi.org/10.1007/s00138-024-01549-9**
 
 - *Problem / method.* Fuses the product **image with OCR of the packaging text** for
   fine-grained recognition.
@@ -75,9 +76,10 @@ OCR text.* https://www.researchgate.net/publication/375000319**
   fusion — and supports feasibility under a small, self-collected dataset.
 - *Limitations.* Recognition only; no downstream listing or pricing.
 
-**[verify authors] (2018). *Fine-grained grocery product recognition by one-shot learning*
-(CAPG-GP dataset). Proceedings of ACM Multimedia 2018.
-http://zju-capg.org/capg-gp.html**
+**Geng, W., Han, F., Lin, J., Zhu, L., Bai, J., Wang, S., He, L., Xiao, Q., & Lai, Z. (2018).
+*Fine-grained grocery product recognition by one-shot learning* (CAPG-GP dataset). Proceedings
+of the 26th ACM International Conference on Multimedia, 1706–1714.
+https://doi.org/10.1145/3240508.3240522**
 
 - *Contribution.* Smartphone-captured grocery dataset (box/bag/tube packaging) with one-shot
   recognition — i.e., recognising a product from a **single** reference image.
@@ -96,8 +98,9 @@ https://www.semanticscholar.org/paper/55774d24c98f8e77275a5e3629ed1503a22497b8**
 - *Relevance.* Establishes that images carry price signal — useful as a **baseline** to beat.
 - *Limitations.* Image-only; no market/comparable grounding; accuracy is coarse.
 
-**[verify authors] (2020). Deep end-to-end learning for price prediction of second-hand items.
-*Knowledge and Information Systems, 62.* https://doi.org/10.1007/s10115-020-01495-8**
+**Fathalla, A., Salah, A., Li, K., Li, K., & Piccialli, F. (2020). Deep end-to-end learning for
+price prediction of second-hand items. *Knowledge and Information Systems, 62*, 4541–4568.
+https://doi.org/10.1007/s10115-020-01495-8**
 
 - *Problem / method.* Multimodal (CNN image + LSTM text) end-to-end price prediction for
   second-hand goods.
@@ -105,8 +108,8 @@ https://www.semanticscholar.org/paper/55774d24c98f8e77275a5e3629ed1503a22497b8**
 - *Limitations.* Static regression — does not track market dynamics; no retrieval of live
   comparables (which is central to our design).
 
-**[verify authors] (2025). *LLP: LLM-based product pricing in e-commerce.* arXiv:2510.09347.
-https://arxiv.org/pdf/2510.09347**
+**Wang, H., You, S., Zhang, Q., Xie, X., Han, S., Wu, Y., Huang, F., & Chen, J. (2025). *LLP:
+LLM-based product pricing in e-commerce.* arXiv:2510.09347. https://arxiv.org/abs/2510.09347**
 
 - *Problem / method.* First **LLM-based generative** pricing framework; **retrieves similar
   products** to track market change, then reasons over free-form text; adds a
@@ -121,8 +124,9 @@ https://arxiv.org/pdf/2510.09347**
 *(The evidence base for the image-upgrade step: finding a clean, high-res image that is the
 **same** product, not merely similar.)*
 
-**[verify authors] (2020). *SIR: Similar image retrieval for product search in e-commerce.*
-arXiv:2009.13836. https://arxiv.org/pdf/2009.13836**
+**Stanley, T., Vanjara, N., Pan, Y., Pirogova, E., Chakraborty, S., & Chaudhuri, A. (2020).
+*SIR: Similar image retrieval for product search in e-commerce.* arXiv:2009.13836.
+https://arxiv.org/abs/2009.13836**
 
 - *Problem / method.* Embedding + approximate-nearest-neighbour retrieval of visually similar
   products across a catalogue of millions; includes a **variant-item detection** application
@@ -132,8 +136,9 @@ arXiv:2009.13836. https://arxiv.org/pdf/2009.13836**
 - *Limitations.* Retrieval quality depends on catalogue coverage; "similar" is not "identical,"
   which is precisely the false-swap risk we must measure.
 
-**[verify authors] (2022). *e-CLIP: Large-scale vision-language representation learning in
-e-commerce.* arXiv:2207.00208. https://arxiv.org/pdf/2207.00208**
+**Shin, W., Park, J., Woo, T., Cho, Y., Oh, K., & Song, H. (2022). *e-CLIP: Large-scale
+vision-language representation learning in e-commerce.* arXiv:2207.00208.
+https://arxiv.org/abs/2207.00208**
 
 - *Problem / method.* Contrastive image–text pretraining on raw product data; evaluated on
   category classification, attribute extraction, **product matching**, clustering, and
@@ -148,9 +153,9 @@ e-commerce.* arXiv:2207.00208. https://arxiv.org/pdf/2207.00208**
 | Work | Sub-problem | Modalities | Core approach | Grounding / market signal | Directly reusable for us |
 |------|-------------|-----------|---------------|---------------------------|--------------------------|
 | ModICT (Li et al., 2024) | Listing text | Image + keywords | Frozen LLM + in-context reference | In-context example only | Generate stage |
-| IJSR (2024) | Listing text/keywords | Image + metadata | LLM prompt over metadata | None | Generate stage |
+| Kathiriya et al. (2023) | Listing text/keywords | Image + metadata | LLM prompt over metadata | None | Generate stage |
 | RP2K (Peng et al., 2020) | Recognition | Image | Fine-grained CNN classification | n/a | Recognise benchmark |
-| Multimodal OCR (2023) | Recognition | Image + OCR | Multimodal fusion | n/a | **VLM+OCR design proof** |
+| Pettersson et al. (2024) | Recognition | Image + OCR | Multimodal fusion | n/a | **VLM+OCR design proof** |
 | CAPG-GP (2018) | Recognition | Image | One-shot learning | n/a | Low-data recognition |
 | Price is Right (Chen & Chou, 2018) | Pricing | Image | CNN regression | None | Pricing baseline |
 | Second-hand pricing (2020) | Pricing | Image + text | CNN+LSTM regression | None (static) | Multimodal price baseline |
@@ -197,9 +202,22 @@ For completeness, several commercial tools perform photo→listing for **resale*
 Snap2List, FlipSnap, AISeller, and Sell AI. They confirm demand and feasibility but are closed
 and unevaluated; they are cited as market context, not as academic references.
 
-## References (APA — draft)
+## References (APA)
 
-Chen, S., & Chou, E. (2018). *The price is right: Predicting prices with product images.*
+Chen, S., & Chou, E. (2018). *The price is right: Predicting prices with product images*
+[Stanford CS229 Machine Learning project report].
+
+Fathalla, A., Salah, A., Li, K., Li, K., & Piccialli, F. (2020). Deep end-to-end learning for
+price prediction of second-hand items. *Knowledge and Information Systems, 62*, 4541–4568.
+https://doi.org/10.1007/s10115-020-01495-8
+
+Geng, W., Han, F., Lin, J., Zhu, L., Bai, J., Wang, S., He, L., Xiao, Q., & Lai, Z. (2018).
+*Fine-grained grocery product recognition by one-shot learning.* Proceedings of the 26th ACM
+International Conference on Multimedia, 1706–1714. https://doi.org/10.1145/3240508.3240522
+
+Kathiriya, S., Mullapudi, M., & Karangara, R. (2023). Optimizing e-commerce listing: LLM-based
+description and keyword generation from multimodal data. *International Journal of Science and
+Research (IJSR), 12*(10), 2123–2130. https://www.ijsr.net/getabstract.php?paperid=SR24304113521
 
 Li, Y., Hu, B., Luo, W., Ma, L., Ding, Y., & Zhang, M. (2024). *A multimodal in-context tuning
 approach for e-commerce product description generation.* Proceedings of LREC-COLING 2024.
@@ -208,30 +226,22 @@ https://arxiv.org/abs/2402.13587
 Peng, J., Xiao, C., & Li, Y. (2020). *RP2K: A large-scale retail product dataset for
 fine-grained image classification.* arXiv. https://arxiv.org/abs/2006.12634
 
-*[verify authors]* (2018). *Fine-grained grocery product recognition by one-shot learning.*
-Proceedings of the 26th ACM International Conference on Multimedia.
+Pettersson, T., Riveiro, M., & Löfström, T. (2024). Multimodal fine-grained grocery product
+recognition using image and OCR text. *Machine Vision and Applications, 35*(4), 79.
+https://doi.org/10.1007/s00138-024-01549-9
 
-*[verify authors]* (2020). Deep end-to-end learning for price prediction of second-hand items.
-*Knowledge and Information Systems, 62*(3). https://doi.org/10.1007/s10115-020-01495-8
+Shin, W., Park, J., Woo, T., Cho, Y., Oh, K., & Song, H. (2022). *e-CLIP: Large-scale
+vision-language representation learning in e-commerce.* arXiv. https://arxiv.org/abs/2207.00208
 
-*[verify authors]* (2020). *SIR: Similar image retrieval for product search in e-commerce.*
-arXiv. https://arxiv.org/abs/2009.13836
+Stanley, T., Vanjara, N., Pan, Y., Pirogova, E., Chakraborty, S., & Chaudhuri, A. (2020). *SIR:
+Similar image retrieval for product search in e-commerce.* arXiv.
+https://arxiv.org/abs/2009.13836
 
-*[verify authors]* (2022). *e-CLIP: Large-scale vision-language representation learning in
-e-commerce.* arXiv. https://arxiv.org/abs/2207.00208
-
-*[verify authors]* (2023). *Multimodal fine-grained grocery product recognition using image and
-OCR text.* ResearchGate. https://www.researchgate.net/publication/375000319
-
-*[verify authors]* (2024). Optimizing e-commerce listing: LLM-based description and keyword
-generation from multimodal data. *International Journal of Science and Research, 13.*
-https://www.ijsr.net/getabstract.php?paperid=SR24304113521
-
-*[verify authors]* (2025). *LLP: LLM-based product pricing in e-commerce.* arXiv.
-https://arxiv.org/abs/2510.09347
+Wang, H., You, S., Zhang, Q., Xie, X., Han, S., Wu, Y., Huang, F., & Chen, J. (2025). *LLP:
+LLM-based product pricing in e-commerce.* arXiv. https://arxiv.org/abs/2510.09347
 
 ---
 
-*Prepared as a draft for team validation. Confirm all author lists, venues, and page numbers
-against the primary sources, and re-run any figures through the uOttawa academic-integrity
+*Author lists, venues, and page numbers verified against the primary sources (July 2026).
+Re-run any figures through the uOttawa academic-integrity
 guidance before submission.*

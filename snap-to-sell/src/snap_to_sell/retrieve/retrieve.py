@@ -2,7 +2,8 @@
 
 Flow:
   1. Barcode-first (if the model read a barcode): authoritative record from Open Food Facts,
-     Open Products Facts, then EcomSource (optional keys) -> an EXACT product name.
+     Open Products Facts, then SNAP_BARCODE_SOURCE (default "websearch": a Serper web search on
+     barcodelookup.com + LLM name extraction — cheap; or "ecomsource") -> an EXACT product name.
   2. Shopping backend (SNAP_RETRIEVE_BACKEND=shopping): one Serper.dev Google Shopping search
      using the exact name (or full label) -> clean retailer image + real price. Results are
      re-ranked by brand/size match, reputable-retailer preference, and home-currency preference.
@@ -15,8 +16,8 @@ import sys
 
 import requests
 
-from ..interfaces import RetrievedBundle, PriceInfo, CandidateImage
-from .. import config
+from ..interfaces import RetrievedBundle, PriceInfo, CandidateImage, RankedCandidate
+from .. import config, providers, trace
 
 _FIELDS = "code,product_name,generic_name,brands,categories_tags,image_front_url,image_url,quantity"
 SEARCH_PAGE_SIZE = 5  # fetch N candidates, then re-rank against the recognised identity
@@ -147,6 +148,10 @@ def _pick(identity, hits):
     if not hits:
         return None, False
     scored = sorted(((_score_hit(identity, h), h) for h in hits), key=lambda x: x[0], reverse=True)
+    trace.log("RETRIEVE", "OFF/OPF candidate ranking",
+              [{"score": round(s, 2), "name": _as_text(h.get("product_name")),
+                "brand": _as_text(h.get("brands")), "qty": _as_text(h.get("quantity"))}
+               for s, h in scored])
     best_score, best = scored[0]
     ambiguous = best_score < 2.0
     if len(scored) > 1 and (best_score - scored[1][0]) < 1.0:
@@ -229,6 +234,64 @@ def _search_shopping(query):
     return r.json().get("shopping", [])
 
 
+# Multipack / case detection. Google Shopping (Amazon-heavy) tends to return CASES for cheap
+# single-unit corner-store goods, so the listing price is a pack price, not a unit price. We
+# detect an explicit pack count to (a) down-rank multipacks when the queried item is a single
+# unit and (b) normalise an adopted pack price to per-unit. Bare "N bags/count" is intentionally
+# NOT treated as a multipack — it is ambiguous (e.g. "20 tea bags", "150-count" are single units).
+_PACK_PATTERNS = (
+    r"pack of (\d{1,3})", r"case of (\d{1,3})", r"box of (\d{1,3})", r"carton of (\d{1,3})",
+    r"lot of (\d{1,3})", r"set of (\d{1,3})", r"bundle of (\d{1,3})",
+    r"(\d{1,3})\s*[-\s]?pack\b", r"(\d{1,3})\s*[-\s]?pk\b", r"(\d{1,3})\s*count\s+pack",
+    r"(\d{1,3})\s*[×x]\s*\d",                       # "12 x 355 ml", "24×330"
+    r"(\d{1,3})\s*per\s*(?:case|pack|box|carton|pkg)",   # "12 per case"
+    # French (Canadian bilingual listings)
+    r"lot de (\d{1,3})", r"paquet de (\d{1,3})", r"pack de (\d{1,3})",
+    r"bo[iî]te de (\d{1,3})", r"caisse de (\d{1,3})", r"ensemble de (\d{1,3})",
+    r"(\d{1,3})\s*(?:unit[eé]s|canettes|bouteilles|sachets)",  # "8 canettes"
+)
+_MULTI_WORDS = ("multipack", "multi-pack", "multi pack", "value pack", "family pack",
+                "variety pack", "bulk", "paquet multiple", "caisse")
+
+# Price-outlier guard: a candidate priced far above the median of its peer candidates is almost
+# always a wrong-product or bulk-case match (e.g. a kayak returned for a snack query). Reject it
+# when cheaper viable candidates exist.
+_PRICE_OUTLIER_FACTOR = 8.0
+
+
+def _pack_info(text):
+    """Return (count, is_multipack) for a title. count>1 only for an explicit numeric pack;
+    is_multipack is also True for count-less multipack words (then count stays 1)."""
+    t = (text or "").lower()
+    best = 1
+    for pat in _PACK_PATTERNS:
+        for m in re.finditer(pat, t):
+            try:
+                n = int(m.group(1))
+            except (IndexError, ValueError):
+                continue
+            if 1 < n <= 500:
+                best = max(best, n)
+    if best > 1:
+        return best, True
+    return 1, any(w in t for w in _MULTI_WORDS)
+
+
+def _query_is_multipack(identity) -> bool:
+    """True when the recognised item is ITSELF a multipack (e.g. size '8 x 200 mL', '24 pack'),
+    so matching a multipack listing is correct and must not be penalised or unit-normalised."""
+    _, multi = _pack_info(f"{identity.size} {identity.variant} {identity.product}")
+    return multi
+
+
+def _brand_confirmed(identity, title) -> bool:
+    """True only if the recognised brand actually appears in the chosen listing title. Unbranded
+    items (no recognised brand) return False — we cannot confirm the match, so we decline to
+    trust its price."""
+    idb = _tokens(identity.brand)
+    return bool(idb) and bool(idb & _tokens(title))
+
+
 def _score_shopping(identity, item) -> float:
     id_all = _tokens(f"{identity.brand} {identity.product} {identity.variant} {identity.size}")
     id_brand = _tokens(identity.brand)
@@ -242,6 +305,11 @@ def _score_shopping(identity, item) -> float:
         score += 2.0
     if item.get("imageUrl"):
         score += 0.5
+    # pack mismatch: single-unit query but a multipack/case listing -> down-rank strongly.
+    if not _query_is_multipack(identity):
+        _, multi = _pack_info(item.get("title"))
+        if multi:
+            score -= 2.5
     # retailer preference: reputable retailers up, resale/marketplace sites down
     src = _as_text(item.get("source")).lower()
     if src and any(p in src for p in config.PREFERRED_SOURCES):
@@ -257,19 +325,72 @@ def _score_shopping(identity, item) -> float:
     return score
 
 
+def _ranked_candidates(identity, scored, best_item, top=3):
+    """Top-N ranked shopping candidates as RankedCandidate objects (for the run report)."""
+    q_multi = _query_is_multipack(identity)
+    out = []
+    for s, it in scored[:top]:
+        pv, cur = _parse_price(it.get("price"))
+        n, multi = _pack_info(it.get("title"))
+        notes = []
+        if n > 1 and multi and not q_multi:
+            notes.append(f"{n}-pack (price shown ÷{n} for unit)")
+        elif multi and not q_multi:
+            notes.append("multipack")
+        src = _as_text(it.get("source")).lower()
+        if src and any(p in src for p in config.PREFERRED_SOURCES):
+            notes.append("reputable retailer")
+        elif src and any(d in src for d in config.DEMOTED_SOURCES):
+            notes.append("marketplace/resale")
+        if cur and cur not in config.PREFERRED_CURRENCIES:
+            notes.append(f"{cur} (foreign)")
+        out.append(RankedCandidate(
+            title=_as_text(it.get("title")), price=pv, currency=cur or config.CURRENCY,
+            source=_as_text(it.get("source")), image_url=_as_text(it.get("imageUrl")),
+            category=identity.category, score=round(s, 2), detail=", ".join(notes),
+            chosen=(it is best_item)))
+    return out
+
+
+def _price_outlier_penalty(scored):
+    """Subtract a heavy penalty from candidates whose price is a gross outlier (> factor x the
+    median candidate price) so a wrong-product / bulk-case listing can't win when cheaper viable
+    candidates exist. Returns a re-sorted list."""
+    import statistics
+    prices = [p for p in (_parse_price(it.get("price"))[0] for _, it in scored) if p]
+    if len(prices) < 3:
+        return scored
+    med = statistics.median(prices)
+    if med <= 0:
+        return scored
+    adjusted = []
+    for s, it in scored:
+        pv, _ = _parse_price(it.get("price"))
+        if pv and pv > _PRICE_OUTLIER_FACTOR * med:
+            s -= 5.0
+        adjusted.append((s, it))
+    return sorted(adjusted, key=lambda x: x[0], reverse=True)
+
+
 def _pick_shopping(identity, items):
     if not items:
-        return None, False
+        return None, False, []
     scored = sorted(((_score_shopping(identity, it), it) for it in items),
                     key=lambda x: x[0], reverse=True)
+    scored = _price_outlier_penalty(scored)
+    trace.log("RETRIEVE", "shopping candidate ranking (score reflects brand/size/retailer/currency)",
+              [{"score": round(s, 2), "title": _as_text(it.get("title")),
+                "source": _as_text(it.get("source")), "price": _as_text(it.get("price"))}
+               for s, it in scored])
     best_score, best = scored[0]
+    ranked = _ranked_candidates(identity, scored, best)
     ambiguous = best_score < 2.0
     if len(scored) > 1 and (best_score - scored[1][0]) < 1.0:
         ambiguous = True
-    return best, ambiguous
+    return best, ambiguous, ranked
 
 
-def _bundle_from_shopping(item, ambiguous=False) -> RetrievedBundle:
+def _bundle_from_shopping(item, ambiguous=False, identity=None) -> RetrievedBundle:
     title = _as_text(item.get("title"))
     pv, cur = _parse_price(item.get("price"))
     if pv is None and item.get("priceValue") is not None:
@@ -279,8 +400,16 @@ def _bundle_from_shopping(item, ambiguous=False) -> RetrievedBundle:
             pv = None
     src = _as_text(item.get("source"))
     if pv is not None:
-        price = PriceInfo(currency=cur or config.CURRENCY, point=round(float(pv), 2),
-                          basis="Google Shopping" + (f" ({src})" if src else ""))
+        basis = "Google Shopping" + (f" ({src})" if src else "")
+        # Normalise a pack/case price to per-unit when the queried item is a single unit and the
+        # listing has an explicit pack count (e.g. "$28.88 for 30 Bags" -> $0.96 each).
+        n, multi = _pack_info(title)
+        if n > 1 and multi and not (identity is not None and _query_is_multipack(identity)):
+            pv = float(pv) / n
+            basis += f"; per-unit from {n}-pack"
+            trace.log("RETRIEVE", f"pack normalise: {n}-pack -> unit price {round(pv, 2)}",
+                      {"title": title})
+        price = PriceInfo(currency=cur or config.CURRENCY, point=round(float(pv), 2), basis=basis)
     else:
         price = PriceInfo(currency=config.CURRENCY, basis="no price found")
     images = []
@@ -357,18 +486,78 @@ def _ecom_image(prod) -> str:
     return _as_text(prod.get("mainImage") or _ecom_summary(prod).get("mainImage"))
 
 
+# --------------------------- barcode name via Serper web search + LLM ---------------------------
+
+def _serper_web(query, n=5):
+    r = requests.post(config.SERPER_SEARCH_URL,
+                      json={"q": query, "gl": config.SHOPPING_GL, "num": n},
+                      timeout=config.HTTP_TIMEOUT,
+                      headers={"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"})
+    r.raise_for_status()
+    return r.json().get("organic", [])
+
+
+def _heuristic_name(results):
+    """Fallback name parse from a barcodelookup.com result title (used when no LLM key is set)."""
+    for r in results:
+        t = _as_text(r.get("title"))
+        t = re.split(r"[|\-–—]\s*barcode\s*lookup", t, flags=re.I)[0]
+        t = re.sub(r"\b\d{8,14}\b", "", t)
+        t = re.sub(r"\b(UPC|EAN|GTIN|Barcode)\b[:#]?", "", t, flags=re.I)
+        t = re.sub(r"[()\[\]]", " ", t)
+        t = re.sub(r"\s+", " ", t).strip(" -–—|")
+        if t:
+            return t
+    return ""
+
+
+def _barcode_name_via_search(code) -> str:
+    """Serper web search on barcodelookup.com, then LLM-extract the exact product name — one search
+    credit + one small LLM call, cheaper than a dedicated barcode-data API."""
+    try:
+        results = _serper_web(f"{code} site:barcodelookup.com") or _serper_web(f"{code} barcode product")
+    except Exception as e:
+        print(f"[retrieve] barcode web search failed: {e}", file=sys.stderr)
+        return ""
+    if not results:
+        trace.log("RETRIEVE", "barcode web search: no results")
+        return ""
+    slim = [{"title": _as_text(r.get("title")), "snippet": _as_text(r.get("snippet"))}
+            for r in results[:5]]
+    trace.log("RETRIEVE", "barcode web search results (titles)", [s["title"] for s in slim])
+    try:
+        name = _as_text(providers.extract_product_name(code, slim).get("product_name")).strip()
+        trace.log("RETRIEVE", f"LLM-extracted barcode name = {name!r}")
+        return name
+    except providers.NoProviderError:
+        name = _heuristic_name(results)          # no LLM key -> heuristic title parse
+        trace.log("RETRIEVE", f"heuristic barcode name = {name!r}")
+        return name
+    except Exception as e:
+        print(f"[retrieve] barcode name extraction failed: {e}", file=sys.stderr)
+        return _heuristic_name(results)
+
+
 def _barcode_record(code):
-    """Authoritative product record by barcode: Open Food Facts, then Open Products Facts, then
-    EcomSource (if keys are set). Returns (record, source) or (None, None)."""
+    """Authoritative product record by barcode: Open Food Facts, then Open Products Facts, then the
+    configured SNAP_BARCODE_SOURCE (websearch name-scrape, or EcomSource). Returns (record, source).
+    The websearch source yields a name-only record {'_name': ...}."""
     for product_url, source in ((config.OFF_PRODUCT_URL, "Open Food Facts"),
                                 (config.OPF_PRODUCT_URL, "Open Products Facts")):
         try:
             prod = _by_barcode(product_url, code)
+            trace.log("RETRIEVE", f"barcode {source}: {'hit' if prod else 'miss'}")
             if prod:
                 return prod, source
         except Exception as e:
+            trace.log("RETRIEVE", f"barcode {source} error: {e}")
             print(f"[retrieve] {source} barcode lookup failed: {e}", file=sys.stderr)
-    if config.ECOMSOURCE_ACCESS_KEY and config.ECOMSOURCE_SECRET_KEY:
+
+    if config.BARCODE_SOURCE == "websearch" and config.SERPER_API_KEY:
+        name = _barcode_name_via_search(code)
+        if name:
+            return {"_name": name}, "Web (barcodelookup.com)"
+    elif config.BARCODE_SOURCE == "ecomsource" and config.ECOMSOURCE_ACCESS_KEY and config.ECOMSOURCE_SECRET_KEY:
         try:
             prod = _ecomsource(code)
             if prod:
@@ -380,6 +569,8 @@ def _barcode_record(code):
 
 def _exact_name(prod, source) -> str:
     """Exact product name from a barcode record (used to drive a precise shopping search)."""
+    if source == "Web (barcodelookup.com)":
+        return _as_text(prod.get("_name")).strip()
     if source == "EcomSource":
         summ = _ecom_summary(prod)
         brand = _as_text(summ.get("brand"))
@@ -423,6 +614,10 @@ def _bundle_from_ecomsource(prod, ambiguous=False) -> RetrievedBundle:
 
 
 def _bundle_from_barcode(prod, source, code) -> RetrievedBundle:
+    if source == "Web (barcodelookup.com)":
+        return RetrievedBundle(canonical_name=_as_text(prod.get("_name")),
+                               price=PriceInfo(currency=config.CURRENCY, basis="name from web search"),
+                               images=[])
     if source == "EcomSource":
         return _bundle_from_ecomsource(prod)
     return _bundle_from_record(prod, code, source)
@@ -430,25 +625,45 @@ def _bundle_from_barcode(prod, source, code) -> RetrievedBundle:
 
 def retrieve(identity) -> RetrievedBundle:
     code = identity.barcode
+    trace.log("RETRIEVE", "start",
+              {"barcode": code, "backend": config.RETRIEVE_BACKEND,
+               "barcode_source": config.BARCODE_SOURCE, "search_query": identity.search_query})
 
     # 1) Barcode-first: authoritative record (OFF -> OPF -> EcomSource) -> exact product name.
     bc_prod, bc_source = (_barcode_record(code) if code else (None, None))
     exact = _exact_name(bc_prod, bc_source) if bc_prod else ""
+    if exact:
+        trace.log("RETRIEVE", f"barcode record from {bc_source}; exact name = {exact!r}")
 
     # 2) Shopping backend: search by the EXACT barcode name (or the full label) -> better image + price.
     if config.RETRIEVE_BACKEND == "shopping" and config.SERPER_API_KEY:
         shop_q = exact or _full_query(identity)
+        trace.log("RETRIEVE", f"shopping query = {shop_q!r} "
+                  f"(source: {'barcode exact name' if exact else 'full label'})")
         if shop_q:
             try:
                 items = _search_shopping(shop_q)   # single call = one credit
             except Exception as e:
                 print(f"[retrieve] shopping search failed ({shop_q!r}): {e}", file=sys.stderr)
                 items = []
-            best, ambiguous = _pick_shopping(identity, items)
+            best, ambiguous, ranked = _pick_shopping(identity, items)
             if best:
-                bundle = _bundle_from_shopping(best, ambiguous)
+                bundle = _bundle_from_shopping(best, ambiguous, identity)
+                bundle.candidates = ranked
                 if exact:
                     bundle.canonical_name = exact   # trust the barcode-derived exact name
+                # Confidence gate: if the picked listing's brand can't be confirmed against the
+                # recognised brand, decline to price it (route to review) rather than publish a
+                # wrong-product price. NOTE: we deliberately do NOT gate on bundle.ambiguous — that
+                # flag fires on almost every shopping result (close scores) and would suppress most
+                # items. A barcode-confirmed exact name overrides the gate.
+                if (not exact and config.PRICE_CONFIDENCE_GATE
+                        and not _brand_confirmed(identity, _as_text(best.get("title")))):
+                    trace.log("RETRIEVE", "confidence gate: brand not confirmed -> declining to price, route to review",
+                              {"identity_brand": identity.brand, "picked_title": _as_text(best.get("title"))})
+                    bundle.price = PriceInfo(currency=bundle.price.currency,
+                                             basis="declined: brand not confirmed in listing — route to review")
+                    bundle.ambiguous = True
                 return bundle
         if bc_prod:                                  # shopping missed, but the barcode record stands
             return _bundle_from_barcode(bc_prod, bc_source, code)
