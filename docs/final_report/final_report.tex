@@ -482,6 +482,20 @@ intermediate data improves maintainability, testing,
 traceability, and explainability, characteristics increasingly
 recognized as important within responsible-AI systems
 \cite{li2024modict}.
+\begin{figure}[t]
+\centerline{\includegraphics[width=\columnwidth]{architecture.pdf}}
+\caption{End-to-end architecture: capture, recognise (VLM + OCR), retrieve (price, canonical
+name, candidate images), generate, guardrails, human review, and publish, with a feedback loop
+to a labelled store.}
+\label{fig:arch}
+\end{figure}
+
+\begin{figure}[t]
+\centerline{\includegraphics[width=\columnwidth]{dataflow.pdf}}
+\caption{Data-flow view: the artifacts passed between stages, from raw photo to published
+catalogue entry, with external datastores feeding retrieval.}
+\label{fig:dataflow}
+\end{figure}
 
 \begin{figure*}[t]
 \centering
