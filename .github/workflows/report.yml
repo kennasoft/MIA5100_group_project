@@ -1,0 +1,77 @@
+name: report
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/final_report/**"
+      - ".github/workflows/report.yml"
+  pull_request:
+    paths:
+      - "docs/final_report/**"
+      - ".github/workflows/report.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: Compile final report PDF
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install TeX Live
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base \
+            texlive-latex-recommended \
+            texlive-fonts-recommended \
+            texlive-science \
+            texlive-publishers \
+            poppler-utils
+        # latex-recommended: cite, microtype, xcolor
+        # fonts-recommended: the Times fonts IEEEtran typesets with
+        # science: algorithmic; publishers: IEEEtran.cls and IEEEtran.bst
+        # poppler-utils: pdfinfo, used below to verify the output
+
+      - name: Delete the committed PDF so the build must regenerate it
+        run: rm -f docs/final_report/final_report.pdf
+
+      - name: Compile the report
+        working-directory: docs/final_report
+        run: |
+          # Four-stage build: 1st pass writes .aux, BibTeX resolves the
+          # bibliography, the final two passes settle all cross-references
+          # and citation numbers.
+          pdflatex -interaction=nonstopmode -halt-on-error final_report.tex
+          bibtex final_report
+          pdflatex -interaction=nonstopmode -halt-on-error final_report.tex
+          pdflatex -interaction=nonstopmode -halt-on-error final_report.tex
+
+      - name: Verify the PDF was produced
+        run: pdfinfo docs/final_report/final_report.pdf
+
+      - name: Upload updated PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-report
+          path: docs/final_report/final_report.pdf
+
+      - name: Upload LaTeX logs if the build failed
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: latex-build-logs
+          path: |
+            docs/final_report/final_report.log
+            docs/final_report/final_report.blg
+          if-no-files-found: ignore
+          retention-days: 14
