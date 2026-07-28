@@ -36,10 +36,12 @@ jobs:
             texlive-fonts-recommended \
             texlive-science \
             texlive-publishers \
+            texlive-pictures \
             poppler-utils
         # latex-recommended: cite, microtype, xcolor
         # fonts-recommended: the Times fonts IEEEtran typesets with
         # science: algorithmic; publishers: IEEEtran.cls and IEEEtran.bst
+        # pictures: tikz/pgf, used by the architecture/dataflow diagrams
         # poppler-utils: pdfinfo, used below to verify the output
 
       - name: Delete the committed PDF so the build must regenerate it

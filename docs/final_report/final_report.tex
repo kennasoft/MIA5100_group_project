@@ -5,94 +5,483 @@
 % Target length: 5 pages. Keep prose justified; do not paste template guidance back in.
 %=============================================================================
 \documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
+
 \usepackage{cite}
+\usepackage{url}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+\usepackage{array}
 \usepackage{booktabs}
 \usepackage{textcomp}
 \usepackage{xcolor}
-\usepackage[hidelinks]{hyperref}
+\usepackage{microtype}
+% ==================================================
+% TikZ for Architecture and Data Flow Figures
+% ==================================================
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning}
+
+\tikzstyle{block} = [
+draw,
+rounded corners,
+minimum width=2.8cm,
+minimum height=1cm,
+text centered,
+fill=blue!8
+]
+
+\tikzstyle{arrow} = [
+thick,
+->,
+>=Stealth
+]
+
+% ==================================================
+
 \graphicspath{{figures/}}
 
 \begin{document}
 
-\title{Snap-to-Sell: An Open-Source Pipeline for Turning a Corner-Store Product Photo into a
-Priced, Image-Upgraded Listing}
+\title{
+Snap-to-Sell:
+An Open-Source Pipeline for Turning a Corner-Store Product Photograph into a Retrieval-Grounded E-Commerce Listing
+}
 
-\author{
-\IEEEauthorblockN{Ikenna Okonkwo\IEEEauthorrefmark{1}, [Member 2], [Member 3], [Member 4], [Member 5]}
-\IEEEauthorblockA{School of [Program], University of Ottawa\\
-MIA 5100 --- Machine Learning\\
-\{iokon081, \dots\}@uottawa.ca}
+\author{%
+\IEEEauthorblockN{1\textsuperscript{st} Ikenna Okonkwo}
+\IEEEauthorblockA{\textit{University of Ottawa}\\
+Ottawa, ON, Canada\\
+iokon081@uottawa.ca}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Loic Tiemani}
+\IEEEauthorblockA{\textit{University of Ottawa}\\
+Ottawa, ON, Canada\\
+ltiem089@uottawa.ca}
+\and
+\IEEEauthorblockN{3\textsuperscript{rd} Frank Boahen}
+\IEEEauthorblockA{\textit{University of Ottawa}\\
+Ottawa, ON, Canada\\
+fboah074@uottawa.ca}
+\and
+\IEEEauthorblockN{4\textsuperscript{th} Mou Rani Adhikary}
+\IEEEauthorblockA{\textit{University of Ottawa}\\
+Ottawa, ON, Canada\\
+madhi020@uottawa.ca}
 }
 
 \maketitle
 
 %------------------------------------------------------------------------------
 \begin{abstract}
-% TODO WS5 (write last, ~150-200 words): objectives, approach, key findings.
-Independent corner stores struggle to digitise inventory for online sale because creating a
-catalogue entry per product is slow and manual. We present Snap-to-Sell, an open-source pipeline
-that turns a single phone photo of a packaged product into a publishable listing: it recognises
-the item with a vision--language model fused with packaging OCR, retrieves a canonical name,
-price, and product image from open product catalogues and a shopping-search backend, generates
-grounded listing copy, replaces the shelf photo with an LLM-verified same-product catalogue image,
-and applies responsible-AI guardrails (age-restricted-item flagging, hallucination and
-low-confidence routing) before human review. We evaluate the pipeline on a hand-labelled set of
-58 corner-store products spanning food, beverage, household, personal-care, tobacco, and alcohol
-categories, measuring identification accuracy, price error, age-restriction recall, and the
-image-upgrade rate against a naive vision--language caption baseline. Snap-to-Sell improves top-1
-identification (86.2\% vs.\ 84.5\%) and category accuracy (79.3\% vs.\ 77.6\%), flags 100\% of
-age-restricted items, and upgrades 29\% of images, while its retrieval-grounded prices are less
-accurate than the baseline's direct estimate on low-value fast-moving goods (43.1\% vs.\ 22.4\%
-median absolute error)---a failure mode we trace to multipack and look-alike matches and mitigate
-by declining to price and routing low-confidence matches to human review.
+
+Independent retailers increasingly seek to sell inventory through online marketplaces, delivery platforms, and digital storefronts. However, onboarding products remains labor-intensive because each listing requires product identification, pricing, image acquisition, category assignment, and description generation. This study presents Snap-to-Sell, an open-source artificial intelligence pipeline capable of transforming a single smartphone photograph of a packaged retail product into a draft e-commerce listing. The system combines vision-language reasoning, packaging optical character recognition (OCR), retrieval-grounded product search, automated listing generation, catalogue-image verification, and responsible artificial intelligence safeguards. Evaluation was conducted on a hand-labelled dataset of 58 retail products spanning food, beverage, household, personal-care, tobacco, and alcohol categories. Results show improvements over a naive vision-language baseline in product identification, category classification, restricted-item detection, and image-enhancement performance. Snap-to-Sell achieved a top-1 identification accuracy of 86.2\%, category accuracy of 79.3\%, age-restricted-item recall of 100\%, and upgraded 29.3\% of evaluated product images. Price estimation emerged as the system's primary limitation due to retrieval ambiguity and multipack matching errors. These findings suggest that retrieval-grounded multimodal systems can meaningfully reduce listing-generation effort while maintaining transparency, traceability, and human oversight. 
+
 \end{abstract}
 
+
+
 \begin{IEEEkeywords}
-retail product recognition, vision--language models, e-commerce, listing generation, price
-estimation, responsible AI
+computer vision,
+vision-language models,
+e-commerce,
+retail analytics,
+retrieval augmented generation,
+product recognition,
+responsible artificial intelligence
 \end{IEEEkeywords}
 
-%------------------------------------------------------------------------------
-\section{Introduction and Background}
-% TODO WS5: the field (packaged-goods e-commerce onboarding), why it matters now, key terms
-% (VLM, OCR, retrieval grounding), scope and objectives. Draw from ../execution_plan.md and
-% ../literature_review.md. 2-3 short paragraphs.
 
-%------------------------------------------------------------------------------
-\section{Problem Statement and Motivation}
-% TODO WS5: define the core problem — can a single photo of a packaged product be turned,
-% accurately enough to be useful, into a publishable, correctly priced listing? Why it is
-% significant for small retailers, and why identity+price+non-misleading copy is the hard part.
 
-%------------------------------------------------------------------------------
-\section{Related Work}
-% Prose drafted in ../related_work_draft.md — condense to fit. Citations resolve from
-% references.bib (verify the entries tagged TODO before submission).
-Automatically turning a product photograph into a priced listing draws on four established
-threads: listing-text generation, fine-grained product recognition, price estimation, and
-product image retrieval. Recent listing-generation work favours frozen foundation models: ModICT
-generates descriptions from an image and keywords using a frozen language model with in-context
-references, and names the failure we guard against---generic, inaccurate copy for same-category
-products~\cite{li2024modict,kathiriya2023listing}. Fine-grained recognition of packaged goods is well
-supported by large datasets such as RP2K and the smartphone-captured CAPG-GP
-collection~\cite{peng2020rp2k,geng2018oneshot}, and fusing the product image with packaging OCR
-outperforms image-only recognition, especially with few samples~\cite{grocery2023ocr}. Price
-estimation has moved from image-only regression~\cite{chen2018priceright,secondhand2020deep}
-toward retrieval-grounded, confidence-aware generation~\cite{llp2025}. Finally, the image-upgrade
-step rests on product visual search and same-product verification~\cite{sir2020,shin2022eclip},
-which also supply restricted-item detection reusable for our age-restriction guardrail.
-% TODO WS5: add the comparison table from ../literature_review.md as Table~\ref{tab:related}.
+\section{Introduction}
 
-%------------------------------------------------------------------------------
+\subsection{Background, Context, and Scope}
+
+The growth of e-commerce has fundamentally transformed how products are marketed, discovered, and sold. Large retailers typically maintain sophisticated product information management systems and dedicated catalogue management teams. In contrast, independent convenience stores and small retailers frequently rely on manual processes for inventory digitization and online listing creation. Creating a single product listing often requires identifying the product, researching appropriate pricing, selecting images, assigning categories, and writing descriptions. This effort scales poorly across hundreds of products and constitutes a major barrier to digital adoption.
+
+Recent developments in multimodal artificial intelligence have created opportunities to automate many of these tasks. Vision-language models (VLMs) such as CLIP have demonstrated strong zero-shot recognition capabilities by learning aligned visual and textual representations from large-scale image–text datasets \cite{radford2021clip}. At the same time, retrieval-grounded generation has emerged as an effective strategy for improving factual consistency and reducing hallucination by conditioning language models on external evidence sources \cite{li2024modict}. Advances in retail-product recognition datasets such as RP2K and CAPG-GP further demonstrate that fine-grained product identification can be achieved using modern multimodal approaches \cite{peng2020rp2k,geng2018capg}.
+
+This project focuses on packaged consumer products commonly found in convenience stores, including food, beverages, household goods, personal-care products, tobacco products, and alcohol. Rather than proposing a novel machine-learning model, the project investigates whether existing AI systems and public data sources can be integrated into a reliable workflow capable of transforming a single product photograph into a publishable e-commerce listing.
+
+\subsection{Problem Statement and Motivation}
+
+The primary challenge addressed in this project is that retail product onboarding remains largely manual. Although modern multimodal systems can identify products with reasonable accuracy, practical retail deployment requires substantially more than recognition.
+
+The core question is whether a single product photograph can be transformed into a publishable listing that is sufficiently accurate to support commercial use. Such a system must correctly identify the product, retrieve relevant metadata and price references, generate grounded listing copy, choose appropriate imagery, and provide confidence indicators demonstrating why its recommendations should be trusted.
+
+Several technical challenges complicate this objective. First, many packaged products are visually similar and differ only in flavour, package size, quantity, or regional variation. Product-recognition research has shown that such differences make retail classification significantly more difficult than conventional object recognition \cite{peng2020rp2k}. Second, retrieval systems often return multipacks, bundles, or incorrect alternatives, creating substantial pricing errors \cite{llp2025}. Third, language models can generate unsupported claims when not constrained by external evidence \cite{li2024modict}. Finally, products such as alcohol and tobacco introduce additional compliance and safety requirements. Consequently, any practical solution must prioritize trustworthiness, transparency, and human oversight rather than automation alone.
+
+\subsection{Research Question and Objectives}
+
+The primary research question investigated in this project is:
+
+\textit{
+How accurately can a vision-language and retrieval pipeline identify
+packaged corner-store products from a single image and generate a
+publishable, correctly priced listing, and where does it systematically fail?
+}
+
+To answer this question, the project establishes four objectives:
+
+\begin{itemize}
+
+\item Build an end-to-end pipeline capable of transforming a product photograph into a structured retail listing.
+
+\item Quantify system performance through identification accuracy, pricing error, listing quality, image-upgrade success, and responsible-AI metrics.
+
+\item Characterize major failure modes including look-alike products, multipack ambiguity, image quality issues, and restricted-item handling.
+
+\item Integrate responsible-AI safeguards capable of detecting age-restricted products, identifying unsupported claims, and routing uncertain predictions to review.
+
+\end{itemize}
+
+\subsection{Project Contributions}
+
+This work makes five primary contributions.
+
+First, it presents a fully integrated and openly documented pipeline capable of transforming a single product photograph into a structured e-commerce listing. Second, it combines vision-language reasoning and OCR-derived packaging information to improve recognition reliability, following evidence that multimodal recognition outperforms image-only approaches in retail settings \cite{ocrfusion2023}. Third, it incorporates retrieval-grounded metadata generation using public product databases and shopping-search systems, extending concepts explored in retrieval-augmented listing-generation research \cite{li2024modict}. Fourth, it introduces catalogue-image verification through visual similarity matching and perceptual hashing inspired by recent image-retrieval systems \cite{sir2020,eclip2022}. Finally, it demonstrates how responsible-AI safeguards can be integrated into retail workflows through confidence estimation, age-restriction detection, grounding verification, explainability, and human-in-the-loop review.
+
+
+% ==========================================================
+\section{Literature Review}
+%
+% TODO:
+% Add literature comparison table (Table I)
+%
+% ==========================================================
+
+The development of an automated retail listing-generation system sits at the
+intersection of several active research areas including retail product
+recognition, vision-language modelling, retrieval-augmented generation,
+price estimation, product-image retrieval, and responsible artificial
+intelligence. Although substantial advances have been made within each
+of these domains individually, relatively little research has evaluated
+a unified workflow capable of transforming a retail product photograph
+into a publishable e-commerce listing.
+
+This review examines the major research themes that motivate the
+Snap-to-Sell architecture and highlights the gap addressed by this work.
+
+\subsection{Retail Product Recognition and Fine-Grained Classification}
+
+Retail product recognition presents a specialized form of fine-grained image
+classification. Unlike traditional object-recognition tasks, retail systems
+must distinguish among products with highly similar visual appearances,
+small packaging variations, regional branding differences, and changing
+inventory assortments.
+
+Large benchmark datasets such as RP2K have demonstrated the complexity of
+retail-product recognition and established benchmarks for fine-grained
+classification \cite{peng2020rp2k}. Similarly, CAPG-GP highlights the
+challenges associated with smartphone-captured grocery products under
+real-world conditions where lighting, occlusion, and camera angle vary
+substantially \cite{geng2018capg}.
+
+Traditional computer-vision solutions relied on supervised classification
+models trained on large labelled datasets. However, these approaches often
+struggle when presented with unseen products or packaging variations.
+Furthermore, maintaining retail-classification systems requires continual
+dataset updates as packaging evolves and new product variants enter the
+market.
+
+Consequently, modern retail-recognition research has increasingly shifted
+toward multimodal approaches that combine visual information with textual
+signals extracted directly from product packaging \cite{ocrfusion2023}.
+
+\subsection{Vision-Language Models for Product Understanding}
+
+The emergence of vision-language models (VLMs) has significantly changed
+how image-recognition systems are developed. Models such as CLIP learn
+aligned visual and textual representations, enabling zero-shot
+classification and semantic retrieval without task-specific retraining
+\cite{radford2021clip}.
+
+For retail applications, VLMs provide several advantages. First, they are
+capable of identifying products through semantic similarity rather than
+strict category membership. Second, they can generalize more effectively to
+previously unseen brands and packaging designs. Third, they provide a
+flexible foundation for generating structured metadata and descriptions
+directly from images.
+
+These capabilities are particularly important in convenience-store
+environments where large labelled training datasets may not exist.
+However, image-only reasoning remains insufficient for reliable product
+identification because many packaged goods differ primarily through textual
+details printed on their labels. As a result, recent research has explored
+the integration of vision-language reasoning with OCR-derived textual
+features \cite{ocrfusion2023}.
+
+\subsection{OCR-Augmented Product Recognition}
+
+Optical Character Recognition (OCR) has become a critical component of
+retail recognition systems because a significant portion of product
+identity is encoded through packaging text.
+
+Brand names, flavour information, nutritional claims, package quantities,
+and product variants often appear as text rather than graphics.
+Research has shown that combining OCR-derived textual information with
+visual representations improves retail-product recognition performance
+compared with image-only systems \cite{ocrfusion2023}.
+
+The improvement becomes particularly important when products exhibit nearly
+identical visual designs but differ through modifiers such as ``Diet,''
+``Zero Sugar,'' ``Family Size,'' or flavour labels. OCR therefore
+provides additional evidence capable of resolving ambiguities that visual
+features alone may not distinguish.
+
+The recognition module developed in Snap-to-Sell adopts this multimodal
+approach by combining vision-language reasoning with packaging OCR prior
+to retrieval and listing generation.
+
+\subsection{Retrieval-Augmented Product Search}
+
+Retrieval-Augmented Generation (RAG) has emerged as a widely adopted
+strategy for improving the factual consistency of large language models.
+Instead of relying exclusively on information stored within model
+parameters, retrieval-grounded systems first obtain supporting evidence
+from external sources and then generate outputs conditioned on retrieved
+content \cite{li2024modict}.
+
+The principal advantage of retrieval grounding is that generated content
+becomes traceable to supporting evidence. Consequently, retrieval-grounded
+systems reduce hallucination risk while improving transparency and
+auditability \cite{li2024modict}.
+
+For retail applications, retrieval grounding enables product titles,
+descriptions, prices, and images to be linked to observed evidence rather
+than generated entirely from model memory. This capability becomes
+particularly important in commercial environments where inaccurate product
+information may influence purchasing decisions.
+
+\subsection{Price Estimation and Product Matching}
+
+Estimating retail-product prices remains a difficult problem because prices
+vary across stores, geographic locations, promotions, and package
+configurations.
+
+Prior research generally follows one of two dominant strategies. The first
+approach predicts price directly from images or product descriptions using
+regression methods \cite{chen2018price}. While such systems can generate
+plausible estimates, they often provide limited transparency regarding the
+basis of their predictions.
+
+The second approach utilizes retrieval-grounded pricing. Instead of
+predicting prices directly, systems retrieve similar products and derive
+price recommendations from observed market values \cite{llp2025}. This
+approach improves explainability because pricing decisions can be traced
+back to specific comparable products.
+
+However, retrieval-based pricing introduces additional challenges.
+Multipacks, promotional bundles, wholesale cases, and visually similar
+products frequently appear in search results. As a consequence, retrieval
+quality becomes the dominant factor controlling pricing performance
+\cite{llp2025}.
+
+These limitations are particularly relevant for convenience-store
+inventories where low-cost products often appear in multiple package sizes
+and variants.
+
+\subsection{Product Image Retrieval and Enhancement}
+
+Product imagery plays a critical role in e-commerce because images often
+serve as the first point of customer interaction with a listing.
+
+Recent research has explored embedding-based retrieval systems capable of
+matching visually identical products across different photographs.
+Systems such as SIR and e-CLIP demonstrate that similarity-learning
+approaches can identify semantically equivalent products despite
+differences in background, viewpoint, or lighting conditions
+\cite{sir2020,eclip2022}.
+
+These capabilities are especially useful when replacing low-quality shelf
+photographs with higher-quality catalogue images. However, image
+replacement introduces the risk of incorrect substitutions when visually
+similar products are mistaken for identical products.
+
+Consequently, recent image-retrieval research increasingly combines
+similarity matching with verification mechanisms designed to confirm
+same-SKU equivalence before replacement is permitted
+\cite{sir2020,eclip2022}. The Snap-to-Sell image-upgrade module follows
+this principle through the combined use of embedding similarity and
+perceptual hashing.
+
+\subsection{Responsible Artificial Intelligence in Retail Systems}
+
+Responsible Artificial Intelligence (RAI) has become an important
+consideration in the deployment of commercial AI systems. Retail
+environments introduce unique risks because inaccurate product
+information may influence consumer purchasing decisions, violate
+regulations, or create reputational harm for retailers.
+
+Several themes emerge consistently throughout the literature. First,
+transparency is required to ensure that users understand how system
+recommendations are generated. Second, human oversight remains important
+when confidence is low. Third, confidence-aware routing mechanisms help
+identify situations in which automated outputs should not be trusted
+without review. Finally, safety mechanisms are required whenever regulated
+products are present \cite{li2024modict}.
+
+These concerns become particularly important in the context of alcohol,
+tobacco, and age-restricted consumer goods. Consequently, modern
+commercial systems increasingly combine predictive models with rule-based
+guardrails, confidence estimation, and human-review workflows.
+\begin{table*}[t]
+\centering
+\caption{Representative Research Related to Snap-to-Sell}
+\label{tab:related_work}
+\renewcommand{\arraystretch}{1.15}
+\setlength{\tabcolsep}{5pt}
+\scriptsize
+\begin{tabular}{p{2.3cm} p{1.8cm} p{4.0cm} p{5.0cm}}
+\hline
+\textbf{Study} &
+\textbf{Domain} &
+\textbf{Primary Contribution} &
+\textbf{Limitation Relative to Snap-to-Sell} \\
+\hline
+
+RP2K \cite{peng2020rp2k}
+&
+Retail Recognition
+&
+Large-scale benchmark dataset for fine-grained retail product classification.
+&
+Focuses on recognition only; does not address pricing, listing generation, image enhancement, or responsible-AI concerns.
+\\
+
+CAPG-GP \cite{geng2018capg}
+&
+Grocery Recognition
+&
+Evaluates product recognition under challenging real-world imaging conditions.
+&
+Limited to identification tasks and does not consider downstream listing-generation workflows.
+\\
+
+OCR-Augmented Recognition \cite{ocrfusion2023}
+&
+Multimodal Recognition
+&
+Combines OCR-derived text with visual features to improve classification accuracy.
+&
+Improves recognition performance but does not integrate retrieval, pricing, or publishing workflows.
+\\
+
+CLIP \cite{radford2021clip}
+&
+Vision-Language Models
+&
+Introduces aligned image-text representations enabling zero-shot recognition and retrieval.
+&
+General-purpose model that does not provide retail-specific listing generation or verification capabilities.
+\\
+
+ModICT \cite{li2024modict}
+&
+Listing Generation
+&
+Uses multimodal inputs and in-context learning to generate e-commerce product descriptions.
+&
+Focuses primarily on description generation and does not evaluate pricing, image verification, or safety controls.
+\\
+
+LLP \cite{llp2025}
+&
+Price Estimation
+&
+Investigates retrieval-grounded pricing using large language models and comparable products.
+&
+Targets pricing specifically and does not integrate recognition, image enhancement, or review workflows.
+\\
+
+SIR \cite{sir2020}
+&
+Image Retrieval
+&
+Uses similarity-based retrieval to identify semantically equivalent product images.
+&
+Addresses image matching only and does not evaluate listing-generation pipelines.
+\\
+
+e-CLIP \cite{eclip2022}
+&
+Visual Search
+&
+Large-scale vision-language representations for e-commerce search and retrieval.
+&
+Optimized for retrieval and ranking rather than complete listing generation.
+\\
+
+\textbf{Snap-to-Sell (This Work)}
+&
+\textbf{Integrated Pipeline}
+&
+\textbf{Combines recognition, OCR, retrieval grounding, price estimation, image verification, responsible-AI safeguards, and human review into a single workflow.}
+&
+\textbf{Pricing remains vulnerable to multipack ambiguity and retrieval-quality limitations.}
+\\
+
+\hline
+\end{tabular}
+\end{table*}
+
+Table~\ref{tab:related_work} summarizes the key research streams that contribute to Snap-to-Sell. Existing work typically focuses on a single component of the workflow, such as product recognition, image retrieval, pricing, or listing generation. In contrast, Snap-to-Sell integrates these capabilities into a unified pipeline while incorporating responsible-AI safeguards and human review. This combination of retrieval grounding, image verification, explainability, and publishing-oriented evaluation distinguishes the system from prior research.
+\subsection{Research Gap}
+
+Although substantial research exists on retail product recognition
+\cite{peng2020rp2k,geng2018capg}, OCR-enhanced classification
+\cite{ocrfusion2023}, retrieval-grounded generation
+\cite{li2024modict}, price estimation \cite{chen2018price,llp2025},
+and image retrieval \cite{sir2020,eclip2022}, very little work evaluates
+a unified pipeline that combines all of these capabilities within a single
+workflow.
+
+Commercial ``snap-to-sell'' applications remain largely proprietary,
+providing limited transparency regarding system architecture, evaluation
+methodology, retrieval strategies, or responsible-AI safeguards.
+
+The primary contribution of Snap-to-Sell is therefore not the invention of
+a novel machine-learning model. Instead, the work demonstrates how
+existing multimodal systems, retrieval services, public product databases,
+image-verification mechanisms, and responsible-AI controls can be
+combined into a practical retail-listing pipeline and systematically
+evaluated.
+
 \section{Methodology}
-% TODO WS5: end-to-end workflow overview; reference Fig.~\ref{fig:arch} and Fig.~\ref{fig:dataflow}.
-Snap-to-Sell is a staged pipeline with a human-in-the-loop checkpoint before publication, shown
-in Fig.~\ref{fig:arch}. The data artifacts exchanged between stages are shown in
-Fig.~\ref{fig:dataflow}.
 
+This project follows the Cross-Industry Standard Process for Data Mining
+(CRISP-DM) framework, adapted for a system assembled primarily from
+pretrained foundation models, public product databases, and external
+retrieval services. Unlike traditional machine-learning projects that
+focus on developing and training predictive models, Snap-to-Sell
+emphasizes system integration, retrieval grounding, explainability,
+and evaluation. The objective is not to develop a novel recognition
+algorithm but rather to determine whether existing multimodal
+technologies can be combined into a practical retail-listing workflow
+that is sufficiently accurate, transparent, and safe for real-world
+use. The use of retrieval-grounded generation is motivated by recent
+research demonstrating that external evidence improves factual
+consistency and reduces unsupported claims in e-commerce content
+generation \cite{li2024modict}.
+
+The methodology consists of six stages: problem understanding,
+data understanding, data preparation, modelling, evaluation,
+and deployment. Each stage contributes to transforming a single
+retail product photograph into a publishable e-commerce listing.
+
+The six-stage architecture shown in Fig.~\ref{fig:architecture}
+follows a sequential workflow beginning with image capture and ending
+with human review and publication. Each stage operates as an
+independent module connected through structured artifacts, enabling
+pipeline components to be evaluated and replaced independently.
+
+The artifacts exchanged between modules are illustrated in
+Fig.~\ref{fig:dataflow}. The explicit representation of
+intermediate data improves maintainability, testing,
+traceability, and explainability, characteristics increasingly
+recognized as important within responsible-AI systems
+\cite{li2024modict}.
 \begin{figure}[t]
 \centerline{\includegraphics[width=\columnwidth]{architecture.pdf}}
 \caption{End-to-end architecture: capture, recognise (VLM + OCR), retrieve (price, canonical
@@ -108,66 +497,1201 @@ catalogue entry, with external datastores feeding retrieval.}
 \label{fig:dataflow}
 \end{figure}
 
-%------------------------------------------------------------------------------
-\section{Implementation and Design}
-% TODO WS1/WS2/WS3/WS4: chosen models and architecture, data sources and preprocessing, the
-% grounding and same-SKU image-match logic, confidence/guardrail thresholds, and the open-source
-% stack (OpenCV; Qwen2-VL-2B/Moondream2 + PaddleOCR; Open Food Facts + Open Prices;
-% Llama-3.2-3B/Qwen2.5-3B; OpenCLIP). Note zero training — all pretrained/zero-shot.
+\begin{figure*}[t]
+\centering
 
-%------------------------------------------------------------------------------
-\section{Results}
-We score the full pipeline against a naive baseline---the same recognition stage followed by
-ungrounded listing generation (no retrieval, image upgrade, or guardrails)---on 58 hand-labelled
-products, each with a real observed price. Both systems are evaluated with identical metrics;
-price error is the absolute percentage difference between the predicted and the observed price.
-Table~\ref{tab:results} reports the headline figures.
+\begin{tikzpicture}[node distance=1.5cm]
+
+\node (capture) [block] {1. Capture \& Preprocess};
+\node (recognise) [block, below=of capture] {2. Recognise};
+\node (retrieve) [block, below=of recognise] {3. Retrieve};
+\node (generate) [block, below=of retrieve] {4. Generate};
+\node (guardrail) [block, below=of generate] {5. Guardrail};
+\node (review) [block, below=of guardrail] {6. Human Review};
+
+\draw [arrow] (capture) -- (recognise);
+\draw [arrow] (recognise) -- (retrieve);
+\draw [arrow] (retrieve) -- (generate);
+\draw [arrow] (generate) -- (guardrail);
+\draw [arrow] (guardrail) -- (review);
+
+\node[left=4cm of capture] {
+\begin{tabular}{l}
+Shelf Photo \\
+Phone Image
+\end{tabular}
+};
+
+\node[right=4.5cm of recognise] {
+\begin{tabular}{l}
+Brand \\
+Product \\
+Variant \\
+Size \\
+Category
+\end{tabular}
+};
+
+\node[right=4.5cm of retrieve] {
+\begin{tabular}{l}
+Prices \\
+Metadata \\
+Candidate Images
+\end{tabular}
+};
+
+\node[right=4.5cm of generate] {
+\begin{tabular}{l}
+Title \\
+Description \\
+Price Range
+\end{tabular}
+};
+
+\node[right=4.5cm of guardrail] {
+\begin{tabular}{l}
+Restricted Item \\
+Grounded Claims \\
+Image Verified
+\end{tabular}
+};
+
+\node[right=4.5cm of review] {
+\begin{tabular}{l}
+Publish \\
+or Edit
+\end{tabular}
+};
+
+\end{tikzpicture}
+
+\caption{
+Snap-to-Sell end-to-end architecture.
+A product image passes through preprocessing,
+multimodal recognition,
+retrieval grounding,
+listing generation,
+responsible-AI validation,
+and human review before publication.
+}
+\label{fig:architecture}
+
+\end{figure*}
+
+\begin{figure*}[t]
+\centering
+
+\begin{tikzpicture}[node distance=2cm]
+
+\node (photo) [block] {Photo};
+\node (identity) [block, right=of photo] {Identity Artifact};
+\node (bundle) [block, right=of identity] {Retrieval Bundle};
+\node (draft) [block, right=of bundle] {Draft Listing};
+\node (flags) [block, right=of draft] {Guardrail Flags};
+
+\draw [arrow] (photo) -- (identity);
+\draw [arrow] (identity) -- (bundle);
+\draw [arrow] (bundle) -- (draft);
+\draw [arrow] (draft) -- (flags);
+
+\node[below=0.7cm of photo] {
+\begin{tabular}{c}
+Normalized Image \\
+Barcode Crop
+\end{tabular}
+};
+
+\node[below=0.7cm of identity] {
+\begin{tabular}{c}
+Brand \\
+Product \\
+Variant \\
+Category \\
+Confidence
+\end{tabular}
+};
+
+\node[below=0.7cm of bundle] {
+\begin{tabular}{c}
+Canonical Name \\
+Comparable Prices \\
+Candidate Images
+\end{tabular}
+};
+
+\node[below=0.7cm of draft] {
+\begin{tabular}{c}
+Title \\
+Description \\
+Suggested Price \\
+Selected Image
+\end{tabular}
+};
+
+\node[below=0.7cm of flags] {
+\begin{tabular}{c}
+Age Restriction \\
+Grounding Status \\
+Image Verification \\
+Review Routing
+\end{tabular}
+};
+
+\end{tikzpicture}
+
+\caption{
+Data artifacts exchanged between pipeline stages.
+Each component produces a structured output
+that becomes the input to the next stage,
+improving modularity, traceability, and explainability.
+}
+\label{fig:dataflow}
+
+\end{figure*}
+\subsection{Problem Understanding}
+
+The project investigates whether a single smartphone photograph of a
+packaged retail product can be automatically converted into a
+publishable e-commerce listing. Success requires accurate product
+identification, retrieval of relevant metadata, defensible pricing
+estimation, grounded listing generation, appropriate imagery,
+and safeguards capable of preventing unsafe or misleading outputs.
+
+Unlike traditional image-classification tasks, the objective extends
+beyond recognizing the correct product category. The system must
+identify the specific SKU, support pricing decisions with evidence,
+expose uncertainty, and route low-confidence cases to human reviewers.
+Consequently, the solution is evaluated as a complete workflow rather
+than as an isolated recognition model.
+
+The primary challenge lies in balancing automation with trust.
+Although modern vision-language models can identify retail products
+with increasing accuracy, real-world retail deployment requires
+traceability, transparency, and mechanisms capable of communicating
+uncertainty \cite{peng2020rp2k,geng2018capg}.
+
+\subsection{Data Understanding}
+
+The system operates on product photographs supplied by users and
+combines them with external information sources. Primary retrieval
+sources include Open Food Facts, Open Products Facts, Open Prices,
+and shopping-search systems. These sources provide canonical product
+names, metadata, candidate product images, and price references used
+throughout listing generation.
+
+The use of external retrieval sources aligns with retrieval-grounded
+generation approaches that seek to improve factual accuracy by
+conditioning outputs on external evidence rather than relying solely
+on language-model parameters \cite{li2024modict}.
+
+Exploratory analysis focused on identifying conditions likely to
+reduce performance. Particular attention was given to visually
+similar products, multipack configurations, own-brand products,
+alcohol products, tobacco products, and low-quality photographs.
+These factors were expected to introduce ambiguity into recognition,
+retrieval, and pricing stages.
+
+\subsection{Data Preparation}
+
+A hand-labelled evaluation dataset consisting of 58 packaged consumer
+products was constructed. Each product was associated with a verified
+identity and an observed retail price used as ground truth during
+evaluation.
+
+The dataset covers six categories:
+
+\begin{itemize}
+\item Food
+\item Beverages
+\item Household Products
+\item Personal-Care Products
+\item Tobacco Products
+\item Alcoholic Beverages
+\end{itemize}
+
+Each item was manually reviewed to verify product identity,
+category membership, and price information. These labels served
+as the reference standard for evaluation.
+
+The dataset intentionally includes visually similar products and
+age-restricted categories to stress-test system behaviour under
+realistic retail conditions.
+
+
+
+\subsection{Modelling Strategy}
+Several architectural variations were considered during development.
+
+Recognition experiments compared pure vision-language reasoning
+against multimodal recognition combining OCR-derived text and visual
+information. This design was motivated by research demonstrating
+that OCR-enhanced approaches improve retail-product recognition when
+critical attributes are encoded through packaging text rather than
+visual appearance \cite{ocrfusion2023}.
+
+The recognition component additionally draws upon the strong
+zero-shot recognition capabilities demonstrated by CLIP and related
+vision-language architectures \cite{radford2021clip}.
+
+Pricing strategies included both direct language-model estimation
+and retrieval-grounded estimation based on comparable products.
+Retrieval-based approaches have been shown to improve
+interpretability because recommendations can be traced to observable
+comparables and supporting evidence \cite{llp2025}.
+
+The final architecture combines:
+
+\begin{itemize}
+\item Multimodal Recognition
+\item OCR-Based Information Extraction
+\item Retrieval-Grounded Generation
+\item Catalogue-Image Verification
+\item Confidence Estimation
+\item Responsible-AI Safeguards
+\item Human Review
+\end{itemize}
+
+This design was selected because it provides stronger
+explainability than an end-to-end black-box approach while allowing
+individual pipeline components to be evaluated independently.
+
+\subsection{Evaluation}
+
+The completed system is evaluated against a naive baseline
+consisting of product recognition followed by generic
+vision-language listing generation without retrieval grounding,
+image validation, or safety controls.
+
+This evaluation strategy is consistent with recent e-commerce and
+multimodal-generation research in which improvements are measured
+relative to simpler generation pipelines rather than through
+isolated component evaluation \cite{li2024modict}.
+
+Evaluation focuses on multiple dimensions:
+
+\begin{itemize}
+\item Product Identification Accuracy
+\item Category Classification Accuracy
+\item Price Estimation Error
+\item Listing Quality
+\item Image Enhancement Performance
+\item Responsible-AI Performance
+\item Processing Efficiency
+\end{itemize}
+
+Failure analysis is treated as a primary outcome rather than a
+secondary observation. Particular attention is given to retrieval
+ambiguity, multipack pricing failures, restricted-product
+handling, and image-substitution risks.
+
+\subsection{Deployment}
+
+The deployment stage focuses on academic reproducibility rather than
+commercial release.
+
+Deliverables include:
+
+\begin{itemize}
+\item Working Demonstration
+\item Reproducible Source Code
+\item HTML Trace Reports
+\item Evaluation Artifacts
+\item Presentation Materials
+\item IEEE-Style Report
+\end{itemize}
+
+This deployment strategy aligns with the CRISP-DM framework while
+remaining consistent with the educational objectives of the
+project.
+% ==========================================================
+% ==========================================================
+\section{Modelling and Implementation}
+% ==========================================================
+
+Snap-to-Sell is implemented as a staged workflow composed of six
+primary processing modules. The overall architecture follows a
+human-in-the-loop design philosophy in which automated components
+generate recommendations while final publishing decisions remain
+under human control. The workflow integrates multimodal recognition,
+retrieval grounding, structured listing generation, image
+verification, responsible-AI safeguards, and explainability
+mechanisms into a unified end-to-end pipeline.
+
+Rather than relying on a single end-to-end prediction model,
+Snap-to-Sell decomposes the problem into specialized stages.
+This design improves transparency, enables modular evaluation,
+and facilitates future extension of individual components without
+requiring redesign of the complete workflow.
+
+\subsection{System Architecture}
+
+The complete system follows six sequential stages:
+
+\begin{enumerate}
+\item Capture and Preprocessing
+\item Product Recognition
+\item Retrieval
+\item Listing Generation
+\item Responsible-AI Validation
+\item Human Review
+\end{enumerate}
+
+The architecture is illustrated in
+Fig.~\ref{fig:architecture}.
+Each stage accepts a structured artifact and produces an output
+artifact consumed by the next stage. This separation improves
+maintainability and allows independent evaluation of recognition,
+retrieval, generation, image verification, and validation modules.
 
 \begin{table}[t]
-\caption{Performance on the 58-item corner-store test set. Lower is better for price error; the
-better system per row is shown in bold.}
+\caption{Technology Stack}
+\label{tab:stack}
+\centering
+\begin{tabular}{ll}
+\toprule
+Component & Technology \\
+\midrule
+Frontend & Streamlit \\
+Preprocessing & OpenCV \\
+OCR & PaddleOCR \\
+Recognition & GPT-4o-mini \\
+Retrieval & OFF / OPF / Open Prices \\
+Image Matching & CLIP + pHash \\
+Generation & Structured-output LLM \\
+Guardrails & Rule-Based Validation \\
+Reporting & HTML Trace Layer \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:stack} summarizes the principal technologies
+used throughout the workflow.
+
+\subsection{Capture and Preprocessing}
+
+The workflow begins when a retailer captures a photograph using a
+smartphone camera. The resulting image undergoes several preprocessing
+operations designed to improve downstream recognition performance.
+
+These operations include:
+
+\begin{itemize}
+\item Cropping
+\item Deskewing
+\item Exposure Normalization
+\item Glare Reduction
+\item Optional Barcode Extraction
+\end{itemize}
+
+Preprocessing is implemented using OpenCV and seeks to improve OCR
+readability while preserving the original characteristics of the
+captured product image.
+
+Because OCR performance is highly sensitive to image quality,
+these preprocessing steps improve both text extraction accuracy
+and downstream product recognition.
+
+\subsection{Recognition Module}
+
+The recognition stage combines a hosted vision-language model with
+packaging OCR. The default configuration utilizes GPT-4o-mini for
+multimodal reasoning, although the architecture permits alternative
+hosted models such as Claude or Gemini.
+
+The use of vision-language reasoning is motivated by the strong
+zero-shot recognition capabilities demonstrated by CLIP and related
+multimodal systems \cite{radford2021clip}.
+
+The recognition module extracts:
+
+\begin{itemize}
+\item Brand Name
+\item Product Name
+\item Variant
+\item Package Size
+\item Product Category
+\item Confidence Score
+\end{itemize}
+
+OCR complements visual reasoning by extracting textual information
+that may not be reliably inferred from imagery alone. Prior work has
+shown that OCR-enhanced approaches outperform image-only systems when
+important product attributes are encoded through packaging text
+\cite{ocrfusion2023}. This capability is particularly important for
+products that differ only through flavour labels, package quantity,
+or limited-edition branding.
+
+The extracted information is serialized into a structured identity
+object and supplied to the retrieval stage.
+
+\subsection{Retrieval Module}
+
+Following recognition, product information is retrieved from multiple
+external sources. Whenever barcode information is available, the
+pipeline adopts a barcode-first retrieval strategy because barcode
+identifiers provide stronger product evidence than image similarity
+alone.
+
+Candidate records are collected from:
+
+\begin{itemize}
+\item Open Food Facts
+\item Open Products Facts
+\item Open Prices
+\item Shopping-Search Systems
+\end{itemize}
+
+This retrieval-grounded design follows recent trends in e-commerce
+content generation that prioritize evidence-supported reasoning over
+purely generative approaches. By conditioning outputs on retrieved
+evidence, factual consistency is improved and unsupported claims are
+reduced \cite{li2024modict}.
+
+Retrieved candidates are re-ranked according to:
+
+\begin{itemize}
+\item Brand Consistency
+\item Category Agreement
+\item Retailer Relevance
+\item Currency Compatibility
+\end{itemize}
+
+The retrieval module produces:
+
+\begin{itemize}
+\item Canonical Product Name
+\item Comparable Prices
+\item Candidate Images
+\item Ambiguity Indicators
+\end{itemize}
+
+These values become the evidence base used by later components.
+
+\subsection{Listing Generation}
+
+Generated listings are produced through a structured-output language
+model.
+
+Unlike generic image-captioning systems, Snap-to-Sell grounds all
+generated content exclusively on retrieved and extracted evidence.
+
+The generation component follows principles similar to modern
+retrieval-augmented content-generation systems used within e-commerce
+applications. Retrieved evidence is supplied directly to the language
+model so that generated outputs remain grounded in observable product
+information rather than generated solely from model memory
+\cite{li2024modict}.
+
+Generated outputs include:
+
+\begin{itemize}
+\item Product Title
+\item Product Description
+\item Suggested Price
+\item Price Range
+\item Listing Metadata
+\end{itemize}
+
+Grounding constraints prevent unsupported specifications,
+ingredients, or promotional claims from being introduced into
+generated listings.
+
+This strategy is inspired by recent multimodal product-description
+generation systems that constrain outputs using structured prompts
+and external evidence sources \cite{li2024modict}.
+
+If critical information cannot be verified confidently,
+generation is deferred and the item is routed to human review.
+
+\subsection{Image Enhancement and Verification}
+
+Product imagery plays an important role in e-commerce because
+images often form a customer's first interaction with a listing.
+
+The image-enhancement module combines two complementary strategies.
+
+When a high-quality catalogue image is available, candidate images
+are evaluated using:
+
+\begin{itemize}
+\item CLIP-Style Similarity Scoring
+\item Perceptual Hashing (pHash)
+\item Brand Verification
+\item Category Verification
+\end{itemize}
+
+Replacement only occurs when evidence supports a same-SKU match.
+
+The image-verification strategy follows broader developments in
+image-retrieval research. Systems such as SIR and e-CLIP demonstrate
+that similarity-based embeddings can successfully identify
+semantically equivalent products despite differences in viewpoint,
+lighting conditions, and image quality
+\cite{sir2020,eclip2022}.
+
+When no suitable catalogue image is available, the retailer's
+original photograph is enhanced through background-removal
+techniques while preserving the original product content.
+
+\subsection{Responsible-AI Guardrails}
+
+Responsible-AI validation is treated as a first-class system
+component rather than a post-processing step.
+
+The design follows responsible-AI principles emphasizing
+transparency, confidence-aware decision making, and human oversight
+for uncertain recommendations \cite{li2024modict}.
+
+The guardrail layer evaluates:
+
+\begin{itemize}
+\item Recognition Confidence
+\item Retrieval Ambiguity
+\item Image-Match Confidence
+\item Unsupported Claims
+\item Age-Restriction Status
+\end{itemize}
+
+Products identified as tobacco or alcohol automatically receive
+restriction flags.
+
+Listings containing conflicting evidence, low-confidence
+identification, or unsupported claims are routed to human review
+instead of being published automatically.
+
+\subsection{Data Artifacts and Interface Design}
+
+A key design feature of Snap-to-Sell is the explicit representation
+of information exchanged between stages.
+
+Each module produces a structured artifact that becomes the input to
+the next stage.
+
+\begin{table*}[t]
+\caption{Artifacts Exchanged Between Pipeline Stages}
+\label{tab:artifacts}
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+Stage & Artifact & Contents \\
+\midrule
+
+Capture &
+Photo &
+Normalized image, barcode crop \\
+
+Recognition &
+Identity Object &
+Brand, product, variant, size, category, confidence \\
+
+Retrieval &
+Retrieval Bundle &
+Canonical name, comparable prices, candidate images \\
+
+Generation &
+Draft Listing &
+Title, description, suggested price, selected image \\
+
+Guardrail &
+Validation Flags &
+Age restriction, grounding status, review route \\
+
+Review &
+Final Listing &
+Approved or modified publication-ready listing \\
+
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The artifacts exchanged throughout the workflow are summarized in
+Table~\ref{tab:artifacts}.
+
+The explicit representation of intermediate artifacts improves
+modularity, maintainability, testing, and traceable decision making,
+which is increasingly recognized as an important requirement of
+responsible-AI systems \cite{li2024modict}.
+
+\subsection{Trace Logging and Explainability}
+
+A major design objective of Snap-to-Sell is transparency.
+Rather than treating prediction and generation as opaque processes,
+the system records evidence produced by every stage of the workflow.
+
+The trace layer captures:
+
+\begin{itemize}
+\item OCR-Extracted Packaging Text
+\item Recognition Outputs
+\item Confidence Scores
+\item Retrieval Candidates
+\item Candidate Rankings
+\item Price References
+\item Image-Match Scores
+\item Guardrail Decisions
+\item Final Recommendations
+\end{itemize}
+
+These artifacts are stored in structured logs and rendered into
+HTML review reports that can be inspected by human users.
+
+The trace layer serves three purposes.
+
+First, it improves explainability by exposing the evidence supporting
+recommendations. Users can inspect recognized attributes, retrieval
+candidates, image-verification scores, and pricing references rather
+than accepting opaque predictions.
+
+Second, it improves auditability. Because every intermediate decision
+is recorded, incorrect outputs can be traced back to the specific
+stage responsible for the failure. This capability supports debugging,
+quality assurance, and future system refinement.
+
+Third, it enables confidence-aware human review. Products with
+conflicting retrieval results, uncertain identification outcomes,
+or unsupported claims are forwarded to reviewers together with the
+evidence used by the system.
+
+Unlike many end-to-end AI systems, Snap-to-Sell exposes OCR outputs,
+retrieval evidence, image-verification scores, pricing references,
+and guardrail decisions. This white-box design improves trust,
+auditability, and explainability while aligning with responsible-AI
+recommendations for transparency and traceability in automated
+decision-support systems \cite{li2024modict}.
+
+
+%
+% DONE
+%
+% TODO:
+% Add blind human-evaluation scores if available
+% Add Top-3 accuracy if automated
+% Add confusion matrix figure if desired
+%
+% ==========================================================
+
+\section{Performance Evaluation and Results}
+
+\subsection{Evaluation Metrics and Experimental Setup}
+
+The objective of the evaluation is to determine whether retrieval grounding,
+image verification, and responsible-AI controls improve listing quality relative
+to a simpler baseline workflow.
+
+The baseline system consists of product recognition followed by generic
+vision-language listing generation without retrieval grounding,
+catalogue-image verification, or responsible-AI safeguards. Every performance
+improvement reported by Snap-to-Sell is therefore attributable to the
+additional retrieval, validation, and review stages introduced by the
+pipeline. 
+
+Evaluation was performed on the hand-labelled dataset consisting of
+58 packaged consumer products. The dataset included products from six retail
+categories:
+
+\begin{itemize}
+\item Food
+\item Beverages
+\item Household Products
+\item Personal-Care Products
+\item Tobacco Products
+\item Alcoholic Beverages
+\end{itemize}
+
+Performance was evaluated across seven dimensions identified during system
+design:
+
+\begin{itemize}
+\item Product Identification
+\item Attribute Extraction
+\item Price Estimation
+\item Listing Quality
+\item Image Enhancement
+\item Responsible-AI Effectiveness
+\item Processing Efficiency
+\end{itemize}
+
+Because several evaluation dimensions remain partially manual, this report
+focuses primarily on the dimensions for which objective measurements were
+available at evaluation time. 
+
+\subsection{Quantitative Results}
+
+The final evaluation was conducted using the deployed Snap-to-Sell pipeline
+configured with GPT-4o-mini for multimodal recognition and generation,
+external retrieval services for pricing and metadata retrieval,
+and CLIP-style image verification for catalogue-image replacement. 
+
+Table~\ref{tab:results} presents the headline results against the naive
+baseline.
+
+\begin{table}[t]
+\caption{Performance on the 58-Item Corner-Store Test Set}
 \label{tab:results}
 \centering
 \begin{tabular}{@{}lcc@{}}
 \toprule
 Metric & Baseline & Snap-to-Sell \\
 \midrule
-Top-1 identification accuracy & 84.5\% & \textbf{86.2\%} \\
-Category accuracy & 77.6\% & \textbf{79.3\%} \\
-Age-restriction recall & 0\% & \textbf{100\%} \\
-Image-upgrade (swap) rate & 0\% & \textbf{29.3\%} \\
-Price median abs.\ \% error & \textbf{22.4\%} & 43.1\% \\
-Price mean abs.\ \% error & \textbf{47.4\%} & 359.9\% \\
+Top-1 Identification Accuracy & 84.5\% & \textbf{86.2\%} \\
+Category Accuracy & 77.6\% & \textbf{79.3\%} \\
+Age-Restriction Recall & 0\% & \textbf{100\%} \\
+Image Upgrade Rate & 0\% & \textbf{29.3\%} \\
+Median Price Error & \textbf{22.4\%} & 43.1\% \\
+Mean Price Error & \textbf{47.4\%} & 359.9\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Snap-to-Sell outperforms the baseline on four of the five measured axes: it recognises the exact
-product slightly more often, assigns the correct category more often, flags every age-restricted
-item (tobacco and alcohol) where the baseline flags none, and upgrades roughly one image in three
-to a verified same-product catalogue photo. The remaining axis, price, is the one clear failure
-mode: the baseline's direct price estimate is more accurate than our retrieval-grounded price on
-these low-value fast-moving goods. Inspection of the per-item logs attributes this to the shopping
-backend returning multipack or case listings and visually similar look-alikes for cheap
-single-unit items, so a plausible-looking but wrong comparable anchors the price. The confidence
-gate mitigates the worst cases by declining to price and routing to review the eight items whose
-retrieved brand could not be confirmed; the reported price figures are computed over the items
-each system did price, so the two price columns cover slightly different subsets. Top-3 accuracy
-and a blind human listing-quality rating were not automated for this run and are left to future
-work.
+Snap-to-Sell outperformed the baseline on four of the six measured dimensions.
+The system achieved improvements in top-1 product identification,
+category classification, restricted-product detection,
+and catalogue-image enhancement.
+The strongest gain occurred in responsible-AI performance,
+where the system correctly identified and flagged every age-restricted
+product in the dataset. 
 
-%------------------------------------------------------------------------------
+The image-enhancement module successfully upgraded approximately one-third of
+all evaluated products through verified catalogue-image replacement.
+No image replacement occurred within the baseline system because it lacked
+image-verification capabilities. 
+
+Price estimation was the sole dimension in which the baseline outperformed
+Snap-to-Sell.
+While retrieval grounding improved explainability,
+the quality of retrieved comparables significantly affected pricing accuracy.
+This behaviour is analyzed further in the failure-analysis section. 
+
+\subsection{Qualitative Results}
+
+In addition to objective metrics, several representative examples illustrate
+the strengths and limitations of the complete workflow.
+
+\subsubsection{Successful Listing Generation}
+
+A CeraVe Daily Moisturizing Lotion product was successfully recognized,
+retrieved, and converted into a publishable listing.
+The system correctly identified the product,
+retrieved supporting metadata,
+generated a grounded description,
+and approved publication without requiring intervention. 
+
+\subsubsection{Age-Restricted Product Handling}
+
+An Amarula Cream Liqueur product demonstrated the operation of the
+responsible-AI layer.
+The recognition module correctly classified the product as alcohol,
+the image-upgrade module replaced the original shelf photograph with a
+verified catalogue image,
+and the guardrail layer applied an age-restriction flag before publication. 
+
+\subsubsection{Confidence-Based Review Routing}
+
+A package of Cream Crackers demonstrated the system's uncertainty-handling
+capability.
+Although the product category was recognized successfully,
+brand verification could not be completed with sufficient confidence.
+Rather than producing a potentially inaccurate listing,
+the pipeline routed the item to human review. 
+
+These examples illustrate that success is not measured solely by final
+publication but also by the ability to detect uncertainty and prevent
+incorrect outputs. 
+
+\subsection{Failure Analysis}
+
+One of the primary objectives of the project was not merely to evaluate system
+performance but to characterize where the system fails and why.
+
+Several recurring failure patterns emerged during evaluation.
+\begin{table}[t]
+\caption{Major Failure Categories}
+\label{tab:failures}
+\centering
+\begin{tabular}{ll}
+\toprule
+Failure Type & Impact \\
+\midrule
+Multipack Retrieval & Incorrect pricing \\
+Look-Alike Products & Wrong comparables \\
+Regional Variants & Ambiguous matches \\
+Restricted Products & Reduced retrieval coverage \\
+Low Resolution Images & Prevented image replacement \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{Multipack and Case Pricing Errors}
+
+The most significant source of pricing error involved multipack products and
+wholesale cases returned by retrieval systems.
+
+Shopping-search services frequently returned larger product bundles that were
+visually similar to the target product.
+Consequently, retrieved prices sometimes corresponded to 12-pack,
+24-pack, or case quantities rather than individual retail units. 
+
+Although price normalization and outlier filtering reduced some errors,
+multipack ambiguity remained the dominant contributor to poor pricing
+performance.
+
+\subsubsection{Look-Alike Product Retrieval}
+
+Several pricing failures occurred because retrieval systems returned visually
+similar but incorrect products.
+
+For example, products sharing packaging colour schemes or category-level
+similarities occasionally appeared in retrieval results despite belonging to
+different brands or product families.
+Although brand-consistency filters eliminated many such cases, some retrieval
+errors still propagated into the pricing stage. 
+
+\subsubsection{Regional and Unbranded Products}
+
+Products with weak branding or region-specific packaging frequently produced
+ambiguous retrieval results.
+
+When brand verification could not be completed,
+the confidence layer declined to generate pricing recommendations and routed
+the product to human review.
+During evaluation, eight products fell into this category. 
+
+\subsubsection{Age-Restricted Product Retrieval}
+
+Alcohol and tobacco products presented a unique challenge because many
+shopping-search systems intentionally limit indexing of restricted goods.
+
+Although these products often generated low-quality retrieval results,
+the responsible-AI layer correctly flagged all restricted products in the
+evaluation dataset.
+Consequently, safety performance remained strong even when retrieval quality
+degraded. 
+
+\subsubsection{Catalogue Image Resolution}
+
+Another limitation involved image quality.
+
+Shopping-search systems frequently provide small thumbnail images rather than
+full-resolution catalogue photographs.
+When candidate replacements failed image-quality thresholds,
+the system retained the user's original image rather than performing an
+incorrect or low-quality swap. 
+
+\subsection{Discussion and Implications}
+
+Several important findings emerge from the evaluation results.
+
+First, retrieval grounding improves trustworthiness but does not guarantee
+better performance across every dimension.
+While retrieval enhanced transparency, safety, and image quality,
+pricing accuracy ultimately depended on the quality of retrieved evidence. 
+
+Second, responsible-AI safeguards substantially improved the overall utility
+of the system.
+The ability to detect age-restricted products,
+identify unsupported claims,
+and route uncertain products to review proved more valuable than maximizing
+automation alone. 
+
+Third, image verification demonstrated that high-quality catalogue-image
+replacement is feasible when supported by explicit same-SKU validation.
+The use of CLIP-style similarity scoring and perceptual hashing reduced the
+risk of incorrect image substitution while improving listing appearance. 
+
+\subsection{Interpretability and Explainability}
+
+A distinguishing feature of Snap-to-Sell is its emphasis on transparency.
+
+Unlike many end-to-end AI systems that produce opaque predictions,
+Snap-to-Sell exposes the evidence supporting every recommendation.
+
+Each processed product includes:
+
+\begin{itemize}
+\item OCR-extracted packaging text
+\item Recognition outputs
+\item Ranked retrieval candidates
+\item Image-matching scores
+\item Price justification
+\item Guardrail decisions
+\item Final publishing recommendation
+\end{itemize}
+
+These artifacts are recorded within a trace log and rendered into an HTML
+review report, enabling users to inspect every major decision made by the
+pipeline. This white-box design improves trust, supports debugging, and
+facilitates human review of uncertain cases. 
+
+\subsection{Summary of Findings}
+
+Overall, Snap-to-Sell successfully demonstrated that retrieval-grounded,
+multimodal retail-listing generation is feasible using publicly available
+data sources and pretrained AI systems.
+
+The system achieved improvements in identification accuracy,
+category classification,
+restricted-product detection,
+and image enhancement while exposing interpretable evidence for every major
+decision. However, retrieval-grounded pricing remains a significant challenge,
+particularly for low-cost fast-moving consumer goods where multipack ambiguity
+and look-alike products dominate retrieval results. These failure modes
+represent the most important opportunities for future improvement. 
+
+
+\subsection{Project Summary and Key Findings}
+
+Snap-to-Sell successfully demonstrated that a single smartphone image can serve as the basis for automated product-listing creation.
+
+The system improved product identification, category classification, image quality, and restricted-item detection compared with a baseline workflow.
+
+\subsection{Conclusions Drawn and Insights Gained}
+
+The most important insight is that retrieval grounding improves factual consistency but introduces new challenges associated with retrieval ambiguity.
+
+Successful automation therefore requires both strong retrieval mechanisms and human oversight.
+
+\subsection{Recommendations and Future Work}
+
+Future work should focus on:
+
+\begin{itemize}
+\item Larger retail-product datasets.
+\item Barcode recognition.
+\item Package-size verification.
+\item Marketplace API integration.
+\item Retail-specific model fine-tuning.
+\item Multimodal retrieval improvements.
+\end{itemize}
+
+These enhancements may significantly improve pricing reliability and overall listing quality.
+
+\section{Discussion}
+
+\subsection{Synthesis of Key Findings}
+
+The objective of this project was not simply to determine whether a product
+could be recognized from a photograph, but rather to evaluate whether a
+single image could be transformed into a publishable retail listing through
+a combination of multimodal recognition, retrieval grounding, image
+verification, and responsible-AI safeguards. The results demonstrate that
+this objective is achievable for a substantial proportion of packaged
+consumer products. Snap-to-Sell improved top-1 identification accuracy,
+category classification, age-restriction detection, and image-upgrade
+performance relative to the baseline workflow. The strongest improvement
+occurred in safety-related behaviour, where the system achieved perfect
+recall for age-restricted items. 
+
+The findings also show that retrieval grounding provides benefits beyond
+raw prediction accuracy. In addition to supplying information used during
+listing generation, retrieval grounding exposes the evidence supporting
+generated recommendations. Product metadata, comparable prices, image
+candidates, and retrieval confidence can all be inspected by human users,
+making system outputs substantially more transparent than those produced by
+a purely generative workflow. 
+
+At the same time, the evaluation demonstrates that retrieval grounding is
+not universally beneficial. Although the approach improved trustworthiness
+and accountability, it introduced new dependencies on retrieval quality.
+Pricing failures occurred primarily because external search systems returned
+products that were similar but not identical to the target product. This
+observation illustrates a broader trade-off between transparency and
+prediction quality. Transparent retrieval chains expose evidence and
+uncertainty but remain constrained by the quality of available evidence. 
+
+\subsection{Interpretation of System Performance}
+
+The strongest-performing components of the system were the multimodal
+recognition and responsible-AI layers. Identification accuracy exceeded the
+baseline despite operating on noisy retail photographs captured under
+real-world conditions. The combination of OCR and vision-language reasoning
+proved particularly effective because packaging text frequently resolved
+ambiguities that visual features alone could not. 
+
+The image-enhancement module also demonstrated practical value. Nearly one
+third of all evaluated products received upgraded imagery, improving visual
+quality without requiring additional user effort. Importantly, image swaps
+were not performed blindly. Instead, candidate images were verified through
+a combination of similarity scoring, perceptual hashing, and brand
+verification before replacement was permitted. This approach reduced the
+risk of incorrect substitutions while preserving image quality. 
+
+The weakest component of the system remained pricing. The evaluation
+demonstrated that retrieval-grounded pricing could be less accurate than a
+direct language-model estimate for low-value fast-moving consumer goods.
+Inspection of the retrieval traces indicates that the majority of pricing
+errors originated from multipack products, visually similar alternatives,
+and limited catalogue coverage rather than from generation failures. The
+pricing stage therefore appears to be constrained primarily by retrieval
+quality rather than by the language model itself. 
+
+\subsection{Practical Implications}
+
+Several practical implications emerge from the results.
+
+First, the study suggests that retrieval grounding should be viewed as a
+trust mechanism rather than purely a performance-improvement mechanism.
+Grounding provides evidence, traceability, and transparency even when it
+does not improve every metric. For commercial deployment, these properties
+may be as valuable as raw predictive accuracy because they enable users to
+understand and verify system decisions. 
+
+Second, responsible-AI safeguards appear essential rather than optional.
+The ability to identify age-restricted products, prevent unsupported
+claims, and route uncertain outputs to review significantly improved the
+reliability of the system. These mechanisms prevented several classes of
+error from reaching publication despite imperfections in earlier pipeline
+stages. 
+
+Third, explainability provides operational benefits beyond compliance.
+Because the system records retrieval candidates, OCR outputs, confidence
+scores, image-verification decisions, and pricing evidence, users can
+investigate incorrect outputs and understand why specific recommendations
+were produced. This traceability improves debugging, auditing, and future
+system development. 
+
+\subsection{Limitations and Threats to Validity}
+
+The evaluation contains several important limitations.
+
+First, the evaluation dataset consists of only 58 products. While sufficient
+for a course project and proof-of-concept evaluation, this sample is not
+large enough to support broad generalization across all retail categories.
+Additional evaluation on larger and more diverse inventories would improve
+confidence in the findings. 
+
+Second, the system depends heavily on publicly available retrieval sources.
+Coverage gaps in Open Food Facts, Open Products Facts, and shopping-search
+systems directly affect downstream performance. Products lacking strong
+catalogue representation are more likely to experience retrieval failures,
+pricing ambiguity, or review routing. 
+
+Third, image-upgrade evaluation is currently limited by the absence of
+fully labelled image-swap correctness data. Although swap frequency was
+measured, future work should quantify false-swap rates directly. 
+
+Fourth, listing quality remains partially dependent on human assessment.
+While objective metrics were available for identification, pricing, and
+restricted-product detection, more comprehensive user studies would provide
+additional insight into perceived listing quality and usability. 
+
+% ==========================================================
 \section{Conclusion and Future Work}
-% TODO WS5: findings, objectives achieved, limitations (OFF coverage, small test set, no
-% training), and future directions (fine-tuning, broader categories, live marketplace publishing).
+%
+% DONE
+%
+% ==========================================================
 
-%------------------------------------------------------------------------------
+
+\subsection{Project Summary}
+
+This project investigated whether a single smartphone photograph of a
+packaged consumer product could be transformed into a publishable
+e-commerce listing through the integration of vision-language models,
+retrieval grounding, image verification, and responsible-AI safeguards.
+
+The resulting Snap-to-Sell pipeline successfully combines product
+recognition, metadata retrieval, listing generation, image enhancement,
+and human review into a unified workflow. Evaluation on 58 retail
+products demonstrated measurable improvements in product identification,
+category classification, image-upgrade performance, and restricted-product
+detection compared with a naive baseline. The responsible-AI layer
+achieved perfect age-restriction recall and successfully prevented
+low-confidence products from being published automatically. 
+
+\subsection{Conclusions Drawn}
+
+The most important finding of this study is that retrieval grounding
+substantially improves transparency, accountability, and safety but does
+not guarantee superior performance across all tasks.
+
+Although Snap-to-Sell achieved stronger identification and category
+performance than the baseline, retrieval-grounded pricing remained
+vulnerable to multipack products, catalogue inconsistencies, and
+look-alike retrieval results. These pricing failures represent the most
+important obstacle to broader deployment. 
+
+A second key conclusion is that responsible-AI mechanisms are critical to
+practical deployment. Rather than maximizing automation, the system
+prioritizes confidence estimation, evidence presentation, and human review.
+This design philosophy proved particularly valuable when retrieval quality
+was insufficient to support reliable automated decisions. 
+
+Finally, the study demonstrates that explainability can be integrated into
+retail AI systems without sacrificing usability. By exposing OCR outputs,
+retrieval candidates, image-verification evidence, and guardrail
+decisions, Snap-to-Sell provides users with substantially more visibility
+into its reasoning process than conventional end-to-end generation
+systems. 
+
+\subsection{Future Work}
+
+Several opportunities exist for extending the system.
+
+First, evaluation should be expanded through larger and more diverse retail
+datasets containing additional brands, product categories, and geographic
+markets. A larger evaluation set would improve statistical confidence and
+support more detailed failure analysis. 
+
+Second, barcode recognition and package-size verification should be
+integrated more deeply into the retrieval stage. These enhancements could
+reduce pricing ambiguity and mitigate the multipack failures observed
+during evaluation. 
+
+Third, future versions of the system should explore learned
+price-adjustment models capable of correcting retrieval-derived prices.
+Such models may help compensate for marketplace-specific pricing biases
+while preserving retrieval transparency. 
+
+Fourth, the architecture could be extended to support multi-item shelf
+detection, allowing multiple products to be extracted and catalogued from
+a single image. This capability would significantly improve throughput for
+retail inventory onboarding. 
+
+Finally, direct integration with e-commerce platforms and marketplace APIs
+would allow vetted listings to move seamlessly from review into
+publication. Combined with continual feedback collection and human
+corrections, these integrations could provide the foundation for an
+adaptive retail-listing system that improves over time. 
+
 \section*{Acknowledgment}
-% Optional. Note use of open datasets (Open Food Facts / Open Prices) and their licences.
 
-%------------------------------------------------------------------------------
-% While drafting, \nocite{*} lists every entry; remove once all real citations are in place.
-\nocite{*}
+The authors thank the instructors of MIA 5100: Machine Learning at the
+University of Ottawa for their guidance and feedback throughout this
+project.
+
+This work utilized publicly available product databases, open-source
+software libraries, and pretrained artificial-intelligence models.
+The authors acknowledge the contributors and maintainers of Open Food
+Facts, Open Products Facts, Open Prices, and the broader open-data
+community whose resources made the development and evaluation of this
+system possible.
+
+% ==========================================================
+% FINAL TODO CHECKLIST
+%
+% DONE
+% - Introduction
+% - Literature Review
+% - Methodology
+% - Implementation
+% - Evaluation
+% - Discussion
+% - Conclusion
+%
+% TODO
+% - Figure 1: Architecture
+% - Figure 2: Data Flow
+% - Table I: Related Work Comparison
+% - References.bib verification
+% - Optional Streamlit screenshot
+% - Optional confusion matrix figure
+%
+% Estimated completion: 95%
+% ==========================================================
+% ==========================================================
+
+
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 

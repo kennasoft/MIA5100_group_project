@@ -1,20 +1,15 @@
 % ===========================================================================
-% references.bib  —  Snap-to-Sell (MIA 5100) IEEE report bibliography (DRAFT)
-%
-% Cite in the .tex body with \cite{key}. Only cited entries appear in the
-% reference list; use \nocite{*} while drafting to list them all.
-%
-% Author lists verified against the primary sources (arXiv / DOI / publisher
-% records), July 2026. IEEE convention: capitalise only the first word of an
-% article title; wrap proper nouns/acronyms in {braces} to protect their case.
+% references.bib — Snap-to-Sell (MIA 5100)
 % ===========================================================================
 
-% ---- Listing / description generation -------------------------------------
+% ---------------------------------------------------------------------------
+% Product Listing Generation
+% ---------------------------------------------------------------------------
 
 @inproceedings{li2024modict,
   author    = {Yunxin Li and Baotian Hu and Wenhan Luo and Lin Ma and Yuxin Ding and Min Zhang},
   title     = {A multimodal in-context tuning approach for {E}-commerce product description generation},
-  booktitle = {Proc. Joint Int. Conf. Computational Linguistics, Language Resources and Evaluation (LREC-COLING)},
+  booktitle = {Proceedings of the Joint International Conference on Computational Linguistics, Language Resources and Evaluation (LREC-COLING)},
   year      = {2024},
   note      = {arXiv:2402.13587},
   doi       = {10.48550/arXiv.2402.13587}
@@ -23,25 +18,35 @@
 @article{kathiriya2023listing,
   author  = {Satish Kathiriya and Mahidhar Mullapudi and Rajath Karangara},
   title   = {Optimizing {E}-commerce listing: {LLM}-based description and keyword generation from multimodal data},
-  journal = {International Journal of Science and Research (IJSR)},
+  journal = {International Journal of Science and Research},
   volume  = {12},
   number  = {10},
   pages   = {2123--2130},
-  year    = {2023},
-  note    = {Paper ID SR24304113521}
+  year    = {2023}
 }
 
-% ---- Fine-grained packaged / retail product recognition -------------------
+% ---------------------------------------------------------------------------
+% Retail Product Recognition
+% ---------------------------------------------------------------------------
 
 @article{peng2020rp2k,
-  author = {Jingtian Peng and Chang Xiao and Yifan Li},
-  title  = {{RP2K}: A large-scale retail product dataset for fine-grained image classification},
-  journal= {arXiv preprint arXiv:2006.12634},
-  year   = {2020},
-  doi    = {10.48550/arXiv.2006.12634}
+  author  = {Jingtian Peng and Chang Xiao and Yifan Li},
+  title   = {{RP2K}: A large-scale retail product dataset for fine-grained image classification},
+  journal = {arXiv preprint arXiv:2006.12634},
+  year    = {2020},
+  doi     = {10.48550/arXiv.2006.12634}
 }
 
-@article{grocery2023ocr,
+@inproceedings{geng2018oneshot,
+  author    = {Weidong Geng and Feilin Han and Jiangke Lin and Liuyi Zhu and Jieming Bai and Suzhen Wang and Lin He and Qiang Xiao and Zhangjiong Lai},
+  title     = {Fine-grained grocery product recognition by one-shot learning},
+  booktitle = {Proceedings of the 26th ACM International Conference on Multimedia},
+  pages     = {1706--1714},
+  year      = {2018},
+  doi       = {10.1145/3240508.3240522}
+}
+
+@article{ocrfusion2023,
   author  = {Tobias Pettersson and Maria Riveiro and Tuwe L{\"o}fstr{\"o}m},
   title   = {Multimodal fine-grained grocery product recognition using image and {OCR} text},
   journal = {Machine Vision and Applications},
@@ -52,22 +57,26 @@
   doi     = {10.1007/s00138-024-01549-9}
 }
 
-@inproceedings{geng2018oneshot,
-  author    = {Weidong Geng and Feilin Han and Jiangke Lin and Liuyi Zhu and Jieming Bai and Suzhen Wang and Lin He and Qiang Xiao and Zhangjiong Lai},
-  title     = {Fine-grained grocery product recognition by one-shot learning},
-  booktitle = {Proc. 26th ACM Int. Conf. Multimedia (MM)},
-  pages     = {1706--1714},
-  year      = {2018},
-  doi       = {10.1145/3240508.3240522}
+% ---------------------------------------------------------------------------
+% Vision-Language Models
+% ---------------------------------------------------------------------------
+
+@inproceedings{radford2021clip,
+  author    = {Alec Radford and Jong Wook Kim and Chris Hallacy and others},
+  title     = {Learning transferable visual models from natural language supervision},
+  booktitle = {Proceedings of the International Conference on Machine Learning},
+  year      = {2021}
 }
 
-% ---- Image-based / multimodal price estimation ----------------------------
+% ---------------------------------------------------------------------------
+% Price Estimation
+% ---------------------------------------------------------------------------
 
 @misc{chen2018priceright,
   author = {Steven Chen and Edward Chou},
   title  = {The price is right: Predicting prices with product images},
   year   = {2018},
-  note   = {Stanford {CS229} Machine Learning project report}
+  note   = {Stanford CS229 Project Report}
 }
 
 @article{secondhand2020deep,
@@ -88,7 +97,9 @@
   doi     = {10.48550/arXiv.2510.09347}
 }
 
-% ---- Product image retrieval / same-product verification ------------------
+% ---------------------------------------------------------------------------
+% Image Retrieval
+% ---------------------------------------------------------------------------
 
 @article{sir2020,
   author  = {Theban Stanley and Nihar Vanjara and Yanxin Pan and Ekaterina Pirogova and Swagata Chakraborty and Abon Chaudhuri},
@@ -98,10 +109,35 @@
   doi     = {10.48550/arXiv.2009.13836}
 }
 
-@article{shin2022eclip,
+@article{eclip2022,
   author  = {Wonyoung Shin and Jonghun Park and Taekang Woo and Yongwoo Cho and Kwangjin Oh and Hwanjun Song},
   title   = {{e-CLIP}: Large-scale vision-language representation learning in {E}-commerce},
   journal = {arXiv preprint arXiv:2207.00208},
   year    = {2022},
   doi     = {10.48550/arXiv.2207.00208}
+}
+
+% ---------------------------------------------------------------------------
+% Open Data Sources
+% ---------------------------------------------------------------------------
+
+@misc{openfoodfacts,
+  author       = {{Open Food Facts}},
+  title        = {Open Food Facts Product Database},
+  year         = {2025},
+  howpublished = {\url{https://world.openfoodfacts.org}}
+}
+
+@misc{openproductsfacts,
+  author       = {{Open Products Facts}},
+  title        = {Open Products Facts Database},
+  year         = {2025},
+  howpublished = {\url{https://world.openproductsfacts.org}}
+}
+
+@misc{openprices,
+  author       = {{Open Prices}},
+  title        = {Open Prices Database},
+  year         = {2025},
+  howpublished = {\url{https://prices.openfoodfacts.org}}
 }
