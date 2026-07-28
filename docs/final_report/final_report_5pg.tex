@@ -18,6 +18,23 @@
 \usepackage{microtype}
 
 \graphicspath{{figures/}}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric,arrows.meta,positioning}
+
+\tikzstyle{block}=[
+draw,
+rounded corners,
+minimum width=2.8cm,
+minimum height=1cm,
+text centered,
+fill=blue!8
+]
+
+\tikzstyle{arrow}=[
+thick,
+->,
+>=Stealth
+]
 
 \begin{document}
 
@@ -275,13 +292,13 @@ evaluation artifacts, and this report.
 
 Snap-to-Sell is a staged, human-in-the-loop workflow of six modules in which
 automated components generate recommendations while final publishing decisions
-remain under human control (Fig.~\ref{fig:architecture}). Decomposing the
+remain under human control (A detailed architecture is provided in Appendix A.). Decomposing the
 problem into specialized stages---(1) capture and preprocessing, (2) product
 recognition, (3) retrieval, (4) listing generation, (5) responsible-AI
 validation, and (6) human review---improves transparency and enables modular
 evaluation and extension. Each stage consumes a structured artifact and produces
-the next, whose flow is shown in Fig.~\ref{fig:dataflow};
-Table~\ref{tab:stack} lists the technology stack.
+the next, whose flow is shown in (Data-flow artifacts are shown in Appendix B.);
+The technology stack is summarized in Appendix C.
 
 \begin{figure}[t]
 \centerline{\includegraphics[height=2.7in]{architecture.pdf}}
@@ -433,7 +450,7 @@ Low Resolution Images & Prevented image replacement \\
 \end{table}
 
 \textit{Failure analysis.} Characterizing failures was a primary objective
-(Table~\ref{tab:failures}). The largest pricing errors came from multipacks and
+(Appendix C). The largest pricing errors came from multipacks and
 wholesale cases: shopping search often returned 12-, 24-pack, or case quantities
 visually similar to the target, so retrieved prices did not correspond to single
 retail units; normalization and outlier filtering reduced but did not eliminate
@@ -502,7 +519,218 @@ their guidance, and acknowledge the maintainers of Open Food Facts, Open
 Products Facts, Open Prices, and the broader open-data community whose resources
 made this work possible.
 
+
+% APPENDICES
+% ==========================================================
 \bibliographystyle{IEEEtran}
+
 \bibliography{references}
+
+\appendices
+
+\section{System Architecture}
+
+Figure~\ref{fig:architecture_appendix} presents the complete
+Snap-to-Sell architecture.
+
+\begin{figure*}[h]
+\centering
+\begin{tikzpicture}[node distance=1.5cm]
+
+\node (capture) [block] {1. Capture \& Preprocess};
+\node (recognise) [block, below=of capture] {2. Recognise};
+\node (retrieve) [block, below=of recognise] {3. Retrieve};
+\node (generate) [block, below=of retrieve] {4. Generate};
+\node (guardrail) [block, below=of generate] {5. Guardrail};
+\node (review) [block, below=of guardrail] {6. Human Review};
+
+\draw [arrow] (capture) -- (recognise);
+\draw [arrow] (recognise) -- (retrieve);
+\draw [arrow] (retrieve) -- (generate);
+\draw [arrow] (generate) -- (guardrail);
+\draw [arrow] (guardrail) -- (review);
+
+\node[left=4cm of capture] {
+\begin{tabular}{l}
+Shelf Photo\\
+Phone Image
+\end{tabular}
+};
+
+\node[right=4.5cm of recognise] {
+\begin{tabular}{l}
+Brand\\
+Product\\
+Variant\\
+Size\\
+Category
+\end{tabular}
+};
+
+\node[right=4.5cm of retrieve] {
+\begin{tabular}{l}
+Prices\\
+Metadata\\
+Candidate Images
+\end{tabular}
+};
+
+\node[right=4.5cm of generate] {
+\begin{tabular}{l}
+Title\\
+Description\\
+Price Range
+\end{tabular}
+};
+
+\node[right=4.5cm of guardrail] {
+\begin{tabular}{l}
+Restricted Item\\
+Grounded Claims\\
+Image Verified
+\end{tabular}
+};
+
+\node[right=4.5cm of review] {
+\begin{tabular}{l}
+Publish\\
+or Edit
+\end{tabular}
+};
+
+\end{tikzpicture}
+
+\caption{Snap-to-Sell end-to-end architecture.}
+\label{fig:architecture_appendix}
+\end{figure*}
+
+\section{Data Flow}
+
+Figure~\ref{fig:dataflow_appendix} illustrates
+the artifacts exchanged between pipeline stages.
+
+\begin{figure*}[h]
+\centering
+
+\begin{tikzpicture}[node distance=2cm]
+
+\node (photo) [block] {Photo};
+\node (identity) [block, right=of photo] {Identity Artifact};
+\node (bundle) [block, right=of identity] {Retrieval Bundle};
+\node (draft) [block, right=of bundle] {Draft Listing};
+\node (flags) [block, right=of draft] {Guardrail Flags};
+
+\draw [arrow] (photo) -- (identity);
+\draw [arrow] (identity) -- (bundle);
+\draw [arrow] (bundle) -- (draft);
+\draw [arrow] (draft) -- (flags);
+
+\node[below=0.7cm of photo] {
+\begin{tabular}{c}
+Normalized Image\\
+Barcode Crop
+\end{tabular}
+};
+
+\node[below=0.7cm of identity] {
+\begin{tabular}{c}
+Brand\\
+Product\\
+Variant\\
+Category\\
+Confidence
+\end{tabular}
+};
+
+\node[below=0.7cm of bundle] {
+\begin{tabular}{c}
+Canonical Name\\
+Comparable Prices\\
+Candidate Images
+\end{tabular}
+};
+
+\node[below=0.7cm of draft] {
+\begin{tabular}{c}
+Title\\
+Description\\
+Suggested Price\\
+Selected Image
+\end{tabular}
+};
+
+\node[below=0.7cm of flags] {
+\begin{tabular}{c}
+Age Restriction\\
+Grounding Status\\
+Image Verification\\
+Review Routing
+\end{tabular}
+};
+
+\end{tikzpicture}
+
+\caption{Data artifacts exchanged between pipeline stages.}
+\label{fig:dataflow_appendix}
+\end{figure*}
+
+\section{Supporting Tables}
+
+\begin{table}[h]
+\caption{Technology Stack}
+\label{tab:stack_appendix}
+\centering
+\begin{tabular}{ll}
+\toprule
+Component & Technology \\
+\midrule
+Frontend & Streamlit \\
+Preprocessing & OpenCV \\
+OCR & PaddleOCR \\
+Recognition & GPT-4o-mini \\
+Retrieval & OFF / OPF / Open Prices \\
+Image Matching & CLIP + pHash \\
+Generation & Structured-output LLM \\
+Guardrails & Rule-Based Validation \\
+Reporting & HTML Trace Layer \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table*}[h]
+\caption{Artifacts Exchanged Between Pipeline Stages}
+\label{tab:artifacts_appendix}
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+Stage & Artifact & Contents \\
+\midrule
+Capture & Photo & Normalized image, barcode crop \\
+Recognition & Identity Object & Brand, product, variant, size, category, confidence \\
+Retrieval & Retrieval Bundle & Canonical name, comparable prices, candidate images \\
+Generation & Draft Listing & Title, description, suggested price, selected image \\
+Guardrail & Validation Flags & Age restriction, grounding status, review route \\
+Review & Final Listing & Approved publication-ready listing \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[h]
+\caption{Major Failure Categories}
+\label{tab:failures_appendix}
+\centering
+\begin{tabular}{ll}
+\toprule
+Failure Type & Impact \\
+\midrule
+Multipack Retrieval & Incorrect pricing \\
+Look-Alike Products & Wrong comparables \\
+Regional Variants & Ambiguous matches \\
+Restricted Products & Reduced retrieval coverage \\
+Low Resolution Images & Prevented image replacement \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \end{document}
