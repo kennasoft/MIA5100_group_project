@@ -99,18 +99,18 @@ Large retailers maintain sophisticated product-information systems and dedicated
 catalogue teams, whereas independent convenience stores rely on manual processes
 for inventory digitization. Creating a single listing requires identifying the
 product, researching pricing, selecting images, assigning categories, and
-writing descriptions---effort that scales poorly across hundreds of products and
+writing descriptions; effort that scales poorly across hundreds of products and
 forms a major barrier to digital adoption.
 
 Recent advances in multimodal AI create opportunities to automate these tasks.
 Vision-language models (VLMs) such as CLIP demonstrate strong zero-shot
 recognition by learning aligned visual and textual representations from
-large-scale image--text data \cite{radford2021clip}, while retrieval-grounded
+large-scale image-text data \cite{radford2021clip}, while retrieval-grounded
 generation improves factual consistency by conditioning language models on
 external evidence \cite{li2024modict}. Retail datasets such as RP2K and CAPG-GP
 show that fine-grained product identification is achievable with modern
 multimodal approaches \cite{peng2020rp2k,geng2018oneshot}. This project targets
-packaged consumer products---food, beverages, household goods, personal care,
+packaged consumer products: food, beverages, household goods, personal care,
 tobacco, and alcohol. Rather than proposing a novel model, it investigates
 whether existing AI systems and public data sources can be integrated into a
 reliable workflow that turns one product photograph into a publishable listing.
@@ -160,8 +160,8 @@ imaging conditions \cite{peng2020rp2k,geng2018oneshot}. Supervised classifiers
 struggle with unseen products and require continual retraining, so recognition
 has shifted toward VLMs such as CLIP, which enable zero-shot classification and
 semantic retrieval without task-specific training \cite{radford2021clip}.
-Because many packaged goods differ chiefly through printed text (``Diet,''
-``Zero Sugar,'' ``Family Size,'' flavours), image-only reasoning is
+Because many packaged goods differ chiefly through printed text ("Diet",
+"Zero Sugar", "Family Size" flavours), image-only reasoning is
 insufficient, motivating fusion with OCR-derived features \cite{ocrfusion2023}.
 
 \textit{Retrieval grounding, pricing, and imagery.} Retrieval-augmented
@@ -231,9 +231,9 @@ quality.} \\
 \end{table*}
 
 Table~\ref{tab:related_work} summarizes these streams. Existing work typically
-addresses a single component---recognition, retrieval, pricing, or listing
-generation---whereas Snap-to-Sell integrates them into one pipeline with
-responsible-AI safeguards and human review. Commercial ``snap-to-sell'' apps
+addresses a single component: recognition, retrieval, pricing, or listing
+generation, whereas Snap-to-Sell integrates them into one pipeline with
+responsible-AI safeguards and human review. Commercial "snap-to-sell" apps
 remain proprietary, offering little transparency about architecture, evaluation,
 or safeguards. Our contribution is therefore not a novel model but a
 demonstration of how existing multimodal systems, retrieval services, public
@@ -255,8 +255,8 @@ identification, retrieval of relevant metadata, defensible pricing, grounded
 listing copy, appropriate imagery, and safeguards against unsafe or misleading
 outputs. The system is thus evaluated as a complete workflow rather than an
 isolated recognition model. It operates on user photographs combined with
-external sources---Open Food Facts, Open Products Facts, Open Prices, and
-shopping-search systems---which supply canonical names, metadata, candidate
+external sources: Open Food Facts, Open Products Facts, Open Prices, and
+shopping-search systems, which supply canonical names, metadata, candidate
 images, and price references. Exploratory analysis focused on conditions likely
 to reduce performance: visually similar products, multipacks, own-brand goods,
 alcohol, tobacco, and low-quality photographs.
@@ -276,7 +276,7 @@ the latter improving interpretability because recommendations trace to
 observable evidence \cite{llp2025}. The final architecture combines multimodal
 recognition, OCR extraction, retrieval-grounded generation, catalogue-image
 verification, confidence estimation, responsible-AI safeguards, and human
-review---chosen for stronger explainability than a black-box approach and for
+review; chosen for stronger explainability than a black-box approach and for
 independent evaluation of each module. The complete system is evaluated against
 a naive baseline (recognition followed by generic VLM listing generation without
 retrieval grounding, image validation, or safety controls), consistent with
@@ -292,21 +292,14 @@ evaluation artifacts, and this report.
 
 Snap-to-Sell is a staged, human-in-the-loop workflow of six modules in which
 automated components generate recommendations while final publishing decisions
-remain under human control (A detailed architecture is provided in Appendix A.). Decomposing the
-problem into specialized stages---(1) capture and preprocessing, (2) product
+remain under human control (the process flow and complete architecture are
+provided in Appendix A.). Decomposing the
+problem into specialized stages: (1) capture and preprocessing, (2) product
 recognition, (3) retrieval, (4) listing generation, (5) responsible-AI
-validation, and (6) human review---improves transparency and enables modular
+validation, and (6) human review; improves transparency and enables modular
 evaluation and extension. Each stage consumes a structured artifact and produces
 the next, whose flow is shown in (Data-flow artifacts are shown in Appendix B.);
 The technology stack is summarized in Appendix C.
-
-\begin{figure}[t]
-\centerline{\includegraphics[height=2.7in]{architecture.pdf}}
-\caption{End-to-end architecture: capture, recognise (VLM + OCR), retrieve
-(price, canonical name, candidate images), generate, guardrails, human review,
-and publish, with a feedback loop to a labelled store.}
-\label{fig:architecture}
-\end{figure}
 
 \begin{table}[t]
 \caption{Technology Stack}
@@ -336,7 +329,7 @@ Recognition combines a hosted VLM (default GPT-4o-mini; Claude or Gemini
 optional) with PaddleOCR, motivated by CLIP-style zero-shot capability
 \cite{radford2021clip}. It extracts brand, product name, variant, package size,
 category, and a confidence score into a structured identity object. OCR resolves
-attributes---flavour, quantity, limited-edition branding---that imagery alone
+attributes: flavour, quantity, limited-edition branding, that imagery alone
 cannot, consistent with OCR-augmented recognition outperforming image-only
 systems \cite{ocrfusion2023}.
 
@@ -352,13 +345,6 @@ evidence so unsupported specifications or claims are excluded
 \cite{li2024modict}. When critical information cannot be verified, generation is
 deferred and the item is routed to human review.
 
-\begin{figure}[t]
-\centerline{\includegraphics[height=2.7in]{dataflow.pdf}}
-\caption{Data-flow view: artifacts passed between stages, from raw photo to
-published catalogue entry, with external datastores feeding retrieval.}
-\label{fig:dataflow}
-\end{figure}
-
 \textit{Image verification and guardrails.} When a catalogue image is available,
 candidates are scored with CLIP-style similarity, perceptual hashing, and
 brand/category checks; replacement occurs only when evidence supports a same-SKU
@@ -372,9 +358,9 @@ identification, or unsupported claims are routed to human review rather than
 published.
 
 \textit{Trace logging and explainability.} Unlike opaque end-to-end systems,
-Snap-to-Sell records evidence from every stage---OCR text, recognition outputs,
+Snap-to-Sell records evidence from every stage: OCR text, recognition outputs,
 confidence scores, ranked retrieval candidates, price references, image-match
-scores, guardrail decisions, and final recommendations---into structured logs
+scores, guardrail decisions, and final recommendations into structured logs
 rendered as HTML review reports. This white-box design improves explainability,
 auditability (failures trace to the responsible stage), and confidence-aware
 human review, aligning with responsible-AI guidance on transparency and
@@ -428,7 +414,7 @@ layer: it was classified as alcohol, its shelf photo was replaced with a
 verified catalogue image, and an age-restriction flag was applied before
 publication. A package of Cream Crackers, recognized at category level but with
 insufficient brand confidence, was routed to human review rather than producing
-a potentially inaccurate listing---illustrating that success is measured not
+a potentially inaccurate listing, illustrating that success is measured not
 only by publication but by detecting uncertainty and preventing incorrect
 outputs.
 
@@ -473,7 +459,7 @@ illustrating a transparency--accuracy trade-off. Inspection of traces shows most
 pricing errors originated in retrieval (multipacks, look-alikes, limited
 coverage) rather than in generation, so the pricing stage is constrained by
 retrieval, not the language model. Second, responsible-AI safeguards proved more
-valuable than maximizing automation---detecting age-restricted items, flagging
+valuable than maximizing automation by detecting age-restricted items, flagging
 unsupported claims, and routing uncertain cases prevented several error classes
 from reaching publication. Third, image verification showed that high-quality
 same-SKU replacement is feasible when gated by explicit validation, with
@@ -526,12 +512,29 @@ made this work possible.
 
 \bibliography{references}
 
+\clearpage
+
+\onecolumn
+
 \appendices
 
 \section{System Architecture}
 
-Figure~\ref{fig:architecture_appendix} presents the complete
-Snap-to-Sell architecture.
+Figure~\ref{fig:processflow_appendix} shows the high-level process flow
+across the six pipeline stages, and Figure~\ref{fig:architecture_appendix}
+presents the complete Snap-to-Sell architecture, including the inputs and
+outputs exchanged at each stage.
+
+\begin{figure}[h]
+\centering
+\centerline{\includegraphics[height=7in]{architecture.pdf}}
+\caption{Process flow: capture, recognise (VLM + OCR), retrieve
+(price, canonical name, candidate images), generate, guardrails, human review,
+and publish, with a feedback loop to a labelled store.}
+\label{fig:processflow_appendix}
+\end{figure}
+
+\clearpage
 
 \begin{figure*}[h]
 \centering
@@ -606,12 +609,15 @@ or Edit
 
 \section{Data Flow}
 
-Figure~\ref{fig:dataflow_appendix} illustrates
-the artifacts exchanged between pipeline stages.
+Figure~\ref{fig:dataflow} shows the data-flow view of artifacts passed
+between stages, from raw photo to published catalogue entry, with external
+datastores feeding retrieval, and Figure~\ref{fig:dataflow_appendix}
+illustrates the artifacts exchanged between pipeline stages in more detail.
 
 \begin{figure*}[h]
 \centering
 
+\resizebox{\textwidth}{!}{%
 \begin{tikzpicture}[node distance=2cm]
 
 \node (photo) [block] {Photo};
@@ -668,11 +674,24 @@ Review Routing
 \end{tabular}
 };
 
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 
 \caption{Data artifacts exchanged between pipeline stages.}
 \label{fig:dataflow_appendix}
 \end{figure*}
+
+
+\begin{figure}[h]
+\centering
+\includegraphics[height=6.5in]{dataflow.pdf}
+\caption{Data-flow view: artifacts passed between stages, from raw photo to
+published catalogue entry, with external datastores feeding retrieval.}
+\label{fig:dataflow}
+\end{figure}
+
+
+\clearpage
 
 \section{Supporting Tables}
 
