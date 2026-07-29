@@ -520,17 +520,15 @@ made this work possible.
 
 \section{System Architecture}
 
-Figure~\ref{fig:processflow_appendix} shows the high-level process flow
-across the six pipeline stages, and Figure~\ref{fig:architecture_appendix}
-presents the complete Snap-to-Sell architecture, including the inputs and
-outputs exchanged at each stage.
+Figure~\ref{fig:processflow_appendix} presents the complete Snap-to-Sell architecture, 
+including the inputs and outputs exchanged at each stage, 
+and Figure~\ref{fig:architecture_appendix} shows the high-level process flow across 
+the six pipeline stages.
 
 \begin{figure}[h]
 \centering
 \centerline{\includegraphics[height=7in]{architecture.pdf}}
-\caption{Process flow: capture, recognise (VLM + OCR), retrieve
-(price, canonical name, candidate images), generate, guardrails, human review,
-and publish, with a feedback loop to a labelled store.}
+\caption{Snap-to-Sell end-to-end architecture.}
 \label{fig:processflow_appendix}
 \end{figure}
 
@@ -603,7 +601,9 @@ or Edit
 
 \end{tikzpicture}
 
-\caption{Snap-to-Sell end-to-end architecture.}
+\caption{Process flow: capture, recognise (VLM + OCR), retrieve
+(price, canonical name, candidate images), generate, guardrails, human review,
+and publish}
 \label{fig:architecture_appendix}
 \end{figure*}
 
